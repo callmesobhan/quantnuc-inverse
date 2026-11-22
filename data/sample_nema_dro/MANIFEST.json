@@ -1,0 +1,28 @@
+{
+  "generated_utc": "2026-11-22T22:06:45.823906+00:00",
+  "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE",
+  "files": [
+    {
+      "file": "nema_nu2_2018_dro_pt.dcm",
+      "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+      "license": "Apache-2.0",
+      "description": "NEMA NU 2-2018 6-sphere (10-37 mm, 4:1 ratio) IEC body phantom PET DRO slice (BQML, START decay-corrected).",
+      "sha256": "c9ac14ab4cbe8e9051ea034d0470dd760614f383880b152b04166c3f227d28ce"
+    },
+    {
+      "file": "nema_nu2_2018_dro_ct.dcm",
+      "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+      "license": "Apache-2.0",
+      "description": "Paired NEMA NU 2-2018 IEC body phantom CT attenuation map slice in HU.",
+      "sha256": "62b6d2f84626080b8a8e140164d050c46a3feb73d26752225e21c5f24bd7656c"
+    },
+    {
+      "file": "pydicom_public_ct_sample.dcm",
+      "data_source_tag": "UPSTREAM_PYDICOM_OPEN_TEST_DATA",
+      "license": "MIT",
+      "upstream_source": "pydicom.examples.ct (https://github.com/pydicom/pydicom)",
+      "description": "Publicly distributed small CT DICOM sample bundled with pydicom (MIT License).",
+      "sha256": "3dd31e5cc835b3f2cdd46c9da1982f59251e78518fefa8163d914631c66437d6"
+    }
+  ]
+}

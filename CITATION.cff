@@ -1,0 +1,118 @@
+cff-version: 1.2.0
+message: "If you use quantnuc-inverse in academic research, please cite it using the metadata below. Research Software — NOT A MEDICAL DEVICE."
+title: "quantnuc-inverse: Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine"
+version: 0.1.0
+date-released: "2026-11-22"
+license: Apache-2.0
+type: software
+authors:
+  - name: "quantnuc-inverse Contributors"
+keywords:
+  - nuclear-medicine
+  - pet
+  - spect
+  - partial-volume-correction
+  - earl-harmonization
+  - medical-physics
+  - inverse-problems
+  - sobol-sensitivity
+  - dicom
+  - mcp
+references:
+  - type: article
+    title: "Feasibility of PET/CT system performance harmonisation for quantitative multicentre 89Zr studies"
+    authors:
+      - family-names: Kaalep
+        given-names: Andres
+      - family-names: Huisman
+        given-names: Marc C.
+      - family-names: Sera
+        given-names: Terez
+      - family-names: Vugts
+        given-names: Danielle
+      - family-names: Boellaard
+        given-names: Ronald
+    journal: "EJNMMI Physics"
+    year: 2018
+    volume: 5
+    doi: "10.1186/s40658-018-0226-7"
+  - type: article
+    title: "Feasibility of state of the art PET/CT systems performance harmonisation"
+    authors:
+      - family-names: Kaalep
+        given-names: Andres
+      - family-names: Sera
+        given-names: Terez
+      - family-names: Rijnsdorp
+        given-names: S.
+      - family-names: Yaqub
+        given-names: Maqsood
+      - family-names: Talsma
+        given-names: A.
+      - family-names: Lodge
+        given-names: Martin A.
+      - family-names: Boellaard
+        given-names: Ronald
+    journal: "European Journal of Nuclear Medicine and Molecular Imaging"
+    year: 2018
+    volume: 45
+    pages: "1344-1361"
+    doi: "10.1007/s00259-018-3977-4"
+  - type: article
+    title: "FDG PET/CT: EANM procedure guidelines for tumour imaging: version 2.0"
+    authors:
+      - family-names: Boellaard
+        given-names: Ronald
+    journal: "European Journal of Nuclear Medicine and Molecular Imaging"
+    year: 2015
+    volume: 42
+    pages: "328-354"
+    doi: "10.1007/s00259-014-2961-x"
+  - type: article
+    title: "Correction for partial volume effects in PET: principle and validation"
+    authors:
+      - family-names: Rousset
+        given-names: Olivier G.
+      - family-names: Ma
+        given-names: Yilong
+      - family-names: Evans
+        given-names: Alan C.
+    journal: "Journal of Nuclear Medicine"
+    year: 1998
+    volume: 39
+    issue: 5
+    start: 904
+    end: 911
+  - type: article
+    title: "MIRD Pamphlet No. 23: Quantitative SPECT for Patient-Specific 3-Dimensional Dosimetry in Internal Radionuclide Therapy"
+    authors:
+      - family-names: Dewaraja
+        given-names: Yuni K.
+    journal: "Journal of Nuclear Medicine"
+    year: 2012
+    volume: 53
+    issue: 8
+    pages: "1310-1325"
+    doi: "10.2967/jnumed.111.100123"
+  - type: article
+    title: "Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index"
+    authors:
+      - family-names: Saltelli
+        given-names: Andrea
+      - family-names: Annoni
+        given-names: Paola
+      - family-names: Azzini
+        given-names: Ivano
+      - family-names: Campolongo
+        given-names: Francesca
+      - family-names: Ratto
+        given-names: Marco
+      - family-names: Tarantola
+        given-names: Stefano
+    journal: "Computer Physics Communications"
+    year: 2010
+    volume: 181
+    issue: 2
+    start: 259
+    end: 270
+    doi: "10.1016/j.cpc.2009.09.018"

@@ -1,0 +1,910 @@
+{
+  "title": "EANM / EARL2 / QIBA Quantitative Nuclear Medicine Physics Dossier",
+  "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE",
+  "diagnoses": [
+    {
+      "scenario_name": "Scanner Switch (Standard OSEM -> SiPM PSF-OSEM)",
+      "baseline_observed_suv": 7.902,
+      "followup_observed_suv": 9.137,
+      "observed_delta_suv_pct": 15.63,
+      "psf_gibbs_artifact_pct": 14.29,
+      "pve_resolution_artifact_pct": 1.32,
+      "ct_ac_respiratory_artifact_pct": 0.0,
+      "true_biological_delta_pct": 0.02,
+      "baseline_recovered_suv": 8.011,
+      "followup_recovered_suv": 8.0,
+      "followup_recovered_p05": 7.461,
+      "followup_recovered_p95": 8.362,
+      "verdict": "SCANNER_PSF_GIBBS_ARTIFACT",
+      "percist_quantifiable": false,
+      "falsified_hypotheses": [
+        "H2_PVE_RESOLUTION_BIAS (<5% contribution)",
+        "H3_CT_AC_RESPIRATORY_MISMATCH (<5% contribution)",
+        "H4_TRUE_BIOLOGICAL_CHANGE (<15% after physical inversion)"
+      ],
+      "dominant_mechanism": "PSF-Gibbs Overshoot",
+      "recommendation": "Apparent +SUV inflation is an unharmonized PSF-OSEM Gibbs artifact from scanner switch; apply EARL2 Gaussian harmonization filter before longitudinal PERCIST scoring.",
+      "provenance": {
+        "record_id": "qn-6b6089010d02",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:22.083180+00:00",
+        "operation": "agent_longitudinal_suv_forensics",
+        "input_sha256": "d8b7ad6ef341a88adfaecd2ba25757a0ca2fd11bc64e25ccd4a43b699aa4edc8",
+        "output_sha256": "3e87281d3335f10bbdb5beab88a547a438977bfa291b784c95c078e57e27686e",
+        "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+        "citations": [
+          "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+          "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+          "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scenario_name": "True Progression (EARL2-Harmonized SiPM)",
+      "baseline_observed_suv": 8.312,
+      "followup_observed_suv": 11.678,
+      "observed_delta_suv_pct": 40.5,
+      "psf_gibbs_artifact_pct": 0.0,
+      "pve_resolution_artifact_pct": 0.0,
+      "ct_ac_respiratory_artifact_pct": 0.0,
+      "true_biological_delta_pct": 40.5,
+      "baseline_recovered_suv": 8.013,
+      "followup_recovered_suv": 11.221,
+      "followup_recovered_p05": 10.681,
+      "followup_recovered_p95": 11.763,
+      "verdict": "TRUE_BIOLOGICAL_PROGRESSION",
+      "percist_quantifiable": true,
+      "falsified_hypotheses": [
+        "H1_PSF_GIBBS_OVERSHOOT (<5% contribution)",
+        "H2_PVE_RESOLUTION_BIAS (<5% contribution)",
+        "H3_CT_AC_RESPIRATORY_MISMATCH (<5% contribution)"
+      ],
+      "dominant_mechanism": "True Biological Change",
+      "recommendation": "True biological SUV progression persists after accounting for PSF-Gibbs, PVE, and CT-AC physics.",
+      "provenance": {
+        "record_id": "qn-07ff77696d7d",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:22.096743+00:00",
+        "operation": "agent_longitudinal_suv_forensics",
+        "input_sha256": "31f815ecfdc248b395e45127d2cbf290c34a08f3752f408ebbfa1d0cec30eef2",
+        "output_sha256": "37d9b1549d4d1246169a2ce7c4b6d8c55b5c8dae4544c9a451852bd651588fc0",
+        "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+        "citations": [
+          "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+          "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+          "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scenario_name": "CT-AC Respiratory Shift (-11 mm Basal Lung)",
+      "baseline_observed_suv": 8.343,
+      "followup_observed_suv": 11.395,
+      "observed_delta_suv_pct": 36.58,
+      "psf_gibbs_artifact_pct": 0.0,
+      "pve_resolution_artifact_pct": 0.0,
+      "ct_ac_respiratory_artifact_pct": 36.58,
+      "true_biological_delta_pct": 0.0,
+      "baseline_recovered_suv": 8.013,
+      "followup_recovered_suv": 8.014,
+      "followup_recovered_p05": 7.55,
+      "followup_recovered_p95": 8.543,
+      "verdict": "CT_AC_RESPIRATORY_ARTIFACT",
+      "percist_quantifiable": false,
+      "falsified_hypotheses": [
+        "H1_PSF_GIBBS_OVERSHOOT (<5% contribution)",
+        "H2_PVE_RESOLUTION_BIAS (<5% contribution)",
+        "H4_TRUE_BIOLOGICAL_CHANGE (<15% after physical inversion)"
+      ],
+      "dominant_mechanism": "CT-AC Respiratory Mismatch",
+      "recommendation": "Apparent SUV shift is dominated by CT-PET respiratory AC mismatch; repeat respiratory-gated/cine-CT AC or evaluate non-attenuation-corrected (NAC) PET.",
+      "provenance": {
+        "record_id": "qn-43b92298d0e5",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:22.110085+00:00",
+        "operation": "agent_longitudinal_suv_forensics",
+        "input_sha256": "899593fd277b5d3b9b99bcf4a71828147275f77a22c8bbfdf0cfad5228367ee5",
+        "output_sha256": "2a454252e006bd2d398f2440fca03fffd6489973121b9d6794874f514e324e05",
+        "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+        "citations": [
+          "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+          "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+          "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scenario_name": "PVE Diameter Bias (10 mm -> 16 mm Lesion)",
+      "baseline_observed_suv": 4.155,
+      "followup_observed_suv": 6.596,
+      "observed_delta_suv_pct": 58.75,
+      "psf_gibbs_artifact_pct": 0.0,
+      "pve_resolution_artifact_pct": 58.7,
+      "ct_ac_respiratory_artifact_pct": 0.0,
+      "true_biological_delta_pct": 0.05,
+      "baseline_recovered_suv": 8.02,
+      "followup_recovered_suv": 8.023,
+      "followup_recovered_p05": 7.203,
+      "followup_recovered_p95": 9.026,
+      "verdict": "PVE_DELINEATION_ARTIFACT",
+      "percist_quantifiable": true,
+      "falsified_hypotheses": [
+        "H1_PSF_GIBBS_OVERSHOOT (<5% contribution)",
+        "H3_CT_AC_RESPIRATORY_MISMATCH (<5% contribution)",
+        "H4_TRUE_BIOLOGICAL_CHANGE (<15% after physical inversion)"
+      ],
+      "dominant_mechanism": "PVE / Resolution Shift",
+      "recommendation": "Observed SUV shift is driven by spatial-resolution / PVE diameter bias; use GTM partial-volume correction or harmonized reconstruction.",
+      "provenance": {
+        "record_id": "qn-2a8291c5aa3d",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:22.118390+00:00",
+        "operation": "agent_longitudinal_suv_forensics",
+        "input_sha256": "441f5c7182085442bd1f6ceed67c8a7f80c8b65d2e3cb0a5ce14c2635e56d7f5",
+        "output_sha256": "bee15f2488f88d023f40c96add89d06a0d2cb4b6cd2fa4d664ff4d93b9b8754d",
+        "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+        "citations": [
+          "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+          "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+          "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    }
+  ],
+  "fleet_harmonization": [
+    {
+      "scanner_id": "SiPM_Digital_PET",
+      "standard_name": "EARL2",
+      "feasible": true,
+      "filter_type": "gaussian",
+      "optimal_post_filter_fwhm_mm": 6.3996,
+      "butterworth_cutoff_cycles_per_mm": null,
+      "recommended_iterations": 4,
+      "recommended_bsrem_beta": 1077.1,
+      "pre_filter_rc_mean": {
+        "10mm": 1.0330775145078392,
+        "13mm": 1.0422771948087493,
+        "17mm": 1.0187697581689907,
+        "22mm": 1.008310953326261,
+        "28mm": 1.0268622160846552,
+        "37mm": 1.0116628387301396
+      },
+      "pre_filter_rc_max": {
+        "10mm": 1.2013489401290645,
+        "13mm": 1.1482395200692743,
+        "17mm": 1.1310889430533646,
+        "22mm": 1.1200848397843495,
+        "28mm": 1.1091660600024553,
+        "37mm": 1.101083533762325
+      },
+      "pre_filter_rc_peak": {
+        "10mm": 0.7222358684059909,
+        "13mm": 1.0422771948087493,
+        "17mm": 1.0848042993010254,
+        "22mm": 1.0430833193961229,
+        "28mm": 1.0327496037059285,
+        "37mm": 1.0266467305145148
+      },
+      "post_filter_rc_mean": {
+        "10mm": 0.6151361061370472,
+        "13mm": 0.7750989020710574,
+        "17mm": 0.8103952314181713,
+        "22mm": 0.8532392426887833,
+        "28mm": 0.8786792405635337,
+        "37mm": 0.906154792238753
+      },
+      "post_filter_rc_max": {
+        "10mm": 0.8224050714266053,
+        "13mm": 0.9862676952115579,
+        "17mm": 1.0423169079207504,
+        "22mm": 1.0224870808521789,
+        "28mm": 1.015773199463852,
+        "37mm": 1.0124957915026496
+      },
+      "post_filter_rc_peak": {
+        "10mm": 0.5229625334788134,
+        "13mm": 0.7090559377674444,
+        "17mm": 0.9140567473162656,
+        "22mm": 1.0110189841962858,
+        "28mm": 1.009972482730521,
+        "37mm": 1.0054110603327067
+      },
+      "max_corridor_violation_before": 0.403078,
+      "max_corridor_violation_after": 0.0,
+      "sharpness_retention_ratio": 0.3878,
+      "provenance": {
+        "record_id": "qn-18052fa9e8a4",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:20.993861+00:00",
+        "operation": "earl_harmonization_filter_synthesis",
+        "input_sha256": "09797f773a11b6a5607d826b5d8c7f06a3c6e262dbce1db07f8ef649a48a9d77",
+        "output_sha256": "9f7dfe52a1b807c398e7e904c508261ab50336fd9590e4393ae851e23466178e",
+        "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+        "citations": [
+          "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scanner_id": "TOF_PSF_PET",
+      "standard_name": "EARL2",
+      "feasible": true,
+      "filter_type": "gaussian",
+      "optimal_post_filter_fwhm_mm": 6.0158,
+      "butterworth_cutoff_cycles_per_mm": null,
+      "recommended_iterations": 4,
+      "recommended_bsrem_beta": 994.5,
+      "pre_filter_rc_mean": {
+        "10mm": 0.9569145282361634,
+        "13mm": 0.9893273803506536,
+        "17mm": 0.98083686523499,
+        "22mm": 0.9911833879492492,
+        "28mm": 1.0038127865073616,
+        "37mm": 0.9954998568081768
+      },
+      "pre_filter_rc_max": {
+        "10mm": 1.227784179397049,
+        "13mm": 1.1596953078984553,
+        "17mm": 1.1209841923653747,
+        "22mm": 1.1084865007680744,
+        "28mm": 1.0948778746232861,
+        "37mm": 1.0847582045395239
+      },
+      "pre_filter_rc_peak": {
+        "10mm": 0.7016117649213365,
+        "13mm": 0.9893273803506536,
+        "17mm": 1.1004949499013439,
+        "22mm": 1.0517838153023908,
+        "28mm": 1.036283727173725,
+        "37mm": 1.028649905145113
+      },
+      "post_filter_rc_mean": {
+        "10mm": 0.6253041056132965,
+        "13mm": 0.7895836931362804,
+        "17mm": 0.8233136364639058,
+        "22mm": 0.8641489252259745,
+        "28mm": 0.8874821429665402,
+        "37mm": 0.912957259184052
+      },
+      "post_filter_rc_max": {
+        "10mm": 0.8381718972695219,
+        "13mm": 1.0094577208857065,
+        "17mm": 1.0660182953147674,
+        "22mm": 1.037023799506617,
+        "28mm": 1.026371649947429,
+        "37mm": 1.0208652202107489
+      },
+      "post_filter_rc_peak": {
+        "10mm": 0.53058957600033,
+        "13mm": 0.721371261859174,
+        "17mm": 0.9305663638429192,
+        "22mm": 1.0258027879780989,
+        "28mm": 1.0176283650354445,
+        "37mm": 1.0100926576573122
+      },
+      "max_corridor_violation_before": 0.347784,
+      "max_corridor_violation_after": 0.0,
+      "sharpness_retention_ratio": 0.4914,
+      "provenance": {
+        "record_id": "qn-cc350d5234d1",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:21.560659+00:00",
+        "operation": "earl_harmonization_filter_synthesis",
+        "input_sha256": "80679bfa5f01d0354c27177fee3a601c9b8bbadd6ddb10a3a2cc89ae7c1ac071",
+        "output_sha256": "90fdfc39391a6aad870317e245e74c87de54113fce8950929cc7d8fb9bda4529",
+        "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+        "citations": [
+          "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scanner_id": "Legacy_PMT_PET",
+      "standard_name": "EARL2",
+      "feasible": true,
+      "filter_type": "gaussian",
+      "optimal_post_filter_fwhm_mm": 0.0,
+      "butterworth_cutoff_cycles_per_mm": null,
+      "recommended_iterations": 2,
+      "recommended_bsrem_beta": null,
+      "pre_filter_rc_mean": {
+        "10mm": 0.44270943180888783,
+        "13mm": 0.5425763341898836,
+        "17mm": 0.6871823432082519,
+        "22mm": 0.7588106540156256,
+        "28mm": 0.8046681163844063,
+        "37mm": 0.8535124621585262
+      },
+      "pre_filter_rc_max": {
+        "10mm": 0.5194301499902129,
+        "13mm": 0.6805824524672395,
+        "17mm": 0.8600605809971422,
+        "22mm": 0.9669984664181207,
+        "28mm": 0.9968037122815616,
+        "37mm": 0.9999687316468088
+      },
+      "pre_filter_rc_peak": {
+        "10mm": 0.399401325977865,
+        "13mm": 0.518845897761684,
+        "17mm": 0.7030749418740514,
+        "22mm": 0.8795415250849145,
+        "28mm": 0.9742528789548331,
+        "37mm": 0.9990162531320697
+      },
+      "post_filter_rc_mean": {
+        "10mm": 0.5887034862247721,
+        "13mm": 0.6755172961664463,
+        "17mm": 0.77284883232519,
+        "22mm": 0.8188199638940037,
+        "28mm": 0.8458460060166391,
+        "37mm": 0.8883825105458332
+      },
+      "post_filter_rc_max": {
+        "10mm": 0.7546412918465827,
+        "13mm": 0.9029966745129724,
+        "17mm": 0.9842288639290605,
+        "22mm": 0.9993252403297412,
+        "28mm": 0.9999977953998953,
+        "37mm": 0.9999999999953886
+      },
+      "post_filter_rc_peak": {
+        "10mm": 0.4687186908455994,
+        "13mm": 0.6323684799250082,
+        "17mm": 0.8397892981831938,
+        "22mm": 0.9687485536526138,
+        "28mm": 0.9983714559495275,
+        "37mm": 0.9999983345911989
+      },
+      "max_corridor_violation_before": 0.139418,
+      "max_corridor_violation_after": 0.0,
+      "sharpness_retention_ratio": 1.0,
+      "provenance": {
+        "record_id": "qn-750d8a4a78a5",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:21.713527+00:00",
+        "operation": "earl_harmonization_filter_synthesis",
+        "input_sha256": "5546c4efe0265c45fa6af770187d5f1ed8f8974993d0745bebe1b787751167ca",
+        "output_sha256": "36e1c963602ca9c8ce29cc1f0573dc009676dd43f7e0a252dd39bc8e95736da3",
+        "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+        "citations": [
+          "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    },
+    {
+      "scanner_id": "CZT_SPECT_CT",
+      "standard_name": "MIRD23_SPECT",
+      "feasible": true,
+      "filter_type": "gaussian",
+      "optimal_post_filter_fwhm_mm": 10.1223,
+      "butterworth_cutoff_cycles_per_mm": null,
+      "recommended_iterations": 6,
+      "recommended_bsrem_beta": null,
+      "pre_filter_rc_mean": {
+        "10mm": 0.6606795778760256,
+        "13mm": 0.7509869112540454,
+        "17mm": 0.8461118980757264,
+        "22mm": 0.8793339298842142,
+        "28mm": 0.8946167957082652,
+        "37mm": 0.9266131534730123
+      },
+      "pre_filter_rc_max": {
+        "10mm": 0.8695499198028265,
+        "13mm": 1.0201227216459476,
+        "17mm": 1.0768244826492073,
+        "22mm": 1.054744883450721,
+        "28mm": 1.039532966521135,
+        "37mm": 1.029917301728624
+      },
+      "pre_filter_rc_peak": {
+        "10mm": 0.5075656716621989,
+        "13mm": 0.6978914981439522,
+        "17mm": 0.9238891009511463,
+        "22mm": 1.036961149077351,
+        "28mm": 1.0332090950369335,
+        "37mm": 1.0186576429582004
+      },
+      "post_filter_rc_mean": {
+        "10mm": 0.3597857688777437,
+        "13mm": 0.4541149933566539,
+        "17mm": 0.5817297674061918,
+        "22mm": 0.6966908187878899,
+        "28mm": 0.7896142319570622,
+        "37mm": 0.8309171412620723
+      },
+      "post_filter_rc_max": {
+        "10mm": 0.41773840366286785,
+        "13mm": 0.545991644762434,
+        "17mm": 0.736705655913247,
+        "22mm": 0.9128185929378678,
+        "28mm": 1.001588587337349,
+        "37mm": 1.011588597244567
+      },
+      "post_filter_rc_peak": {
+        "10mm": 0.35978576887774366,
+        "13mm": 0.4541149933566537,
+        "17mm": 0.6168140113073066,
+        "22mm": 0.8069269499132666,
+        "28mm": 0.9486548213531831,
+        "37mm": 1.007291407255031
+      },
+      "max_corridor_violation_before": 0.30955,
+      "max_corridor_violation_after": 0.0,
+      "sharpness_retention_ratio": 0.5254,
+      "provenance": {
+        "record_id": "qn-645512dc71bf",
+        "engine_version": "0.1.0",
+        "timestamp_utc": "2026-11-22T22:14:22.062668+00:00",
+        "operation": "earl_harmonization_filter_synthesis",
+        "input_sha256": "897848865f346e45cebd7c16ef2be500447534b5097db12bbbae66349f19129f",
+        "output_sha256": "448401abd1ea8768b8e80a228453fea156332da87616ed84c5d29bcdc3ae248c",
+        "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+        "citations": [
+          "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123; Ljungberg et al. (2016) MIRD Pamphlet No. 26, DOI:10.2967/jnumed.115.159012"
+        ],
+        "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+      }
+    }
+  ],
+  "audit_report": {
+    "overall_passed": true,
+    "quantifiability_gate": "PASS_WITH_CAUTION",
+    "checks": [
+      {
+        "check_id": "PROVENANCE_SHA256_CHAIN",
+        "passed": true,
+        "metric_value": "24 records verified=True",
+        "threshold": "True",
+        "rationale": "Every calculation must link deterministically in the SHA-256 provenance ledger."
+      },
+      {
+        "check_id": "FLEET_CORRIDOR_CONVERGENCE",
+        "passed": true,
+        "metric_value": "4/4 feasible (max_viol=0.00000)",
+        "threshold": "100% feasible, max_viol <= 0.001",
+        "rationale": "All fleet scanners must satisfy their target EARL2/QIBA/MIRD-23 RC corridors."
+      },
+      {
+        "check_id": "DELTA_SUV_ATTRIBUTION_CONSERVATION",
+        "passed": true,
+        "metric_value": "max_err=0.0000%",
+        "threshold": "<= 0.15%",
+        "rationale": "Decomposed physical + biological components must sum to observed delta-SUV."
+      },
+      {
+        "check_id": "GTM_EXACT_REPROJECTION_INVARIANT",
+        "passed": true,
+        "metric_value": "residual=0.00e+00",
+        "threshold": "<= 1.0e-06",
+        "rationale": "Forward re-projection of GTM-inverted activity must recover observed mean."
+      }
+    ],
+    "ledger_head_sha256": "7e6ab2894960d3ab08caca77a912c4a155a846d30cece33d096e7adaa25b5b5d",
+    "ledger_integrity_verified": true,
+    "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+  },
+  "provenance_ledger": {
+    "engine_version": "0.1.0",
+    "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE",
+    "record_count": 24,
+    "head_sha256": "7e6ab2894960d3ab08caca77a912c4a155a846d30cece33d096e7adaa25b5b5d",
+    "integrity_verified": true,
+    "entries": [
+      {
+        "chain_sha256": "9ce758634d689af47866e77f7fb531302785644e3ebd1b05f52369a7a3a2621d",
+        "record": {
+          "record_id": "qn-18052fa9e8a4",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:20.993861+00:00",
+          "operation": "earl_harmonization_filter_synthesis",
+          "input_sha256": "09797f773a11b6a5607d826b5d8c7f06a3c6e262dbce1db07f8ef649a48a9d77",
+          "output_sha256": "9f7dfe52a1b807c398e7e904c508261ab50336fd9590e4393ae851e23466178e",
+          "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+          "citations": [
+            "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "4176d7c5e3e2aa4aae5ff44463011491a2ce1709576935df4b561bd7f12b6004",
+        "record": {
+          "record_id": "qn-cc350d5234d1",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:21.560659+00:00",
+          "operation": "earl_harmonization_filter_synthesis",
+          "input_sha256": "80679bfa5f01d0354c27177fee3a601c9b8bbadd6ddb10a3a2cc89ae7c1ac071",
+          "output_sha256": "90fdfc39391a6aad870317e245e74c87de54113fce8950929cc7d8fb9bda4529",
+          "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+          "citations": [
+            "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "5d0611944e680aa0289fca2c1c85a06b1871f64677f37a97378825f0f283bb3b",
+        "record": {
+          "record_id": "qn-750d8a4a78a5",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:21.713527+00:00",
+          "operation": "earl_harmonization_filter_synthesis",
+          "input_sha256": "5546c4efe0265c45fa6af770187d5f1ed8f8974993d0745bebe1b787751167ca",
+          "output_sha256": "36e1c963602ca9c8ce29cc1f0573dc009676dd43f7e0a252dd39bc8e95736da3",
+          "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+          "citations": [
+            "Kaalep et al. (2018) Eur J Nucl Med Mol Imaging 45:1344-1361, DOI:10.1007/s00259-018-3977-4; Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "4649e9ee5029aa0d0a2edac2c8f53a8f48c1440c191b31653eb96711f195c668",
+        "record": {
+          "record_id": "qn-645512dc71bf",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.062668+00:00",
+          "operation": "earl_harmonization_filter_synthesis",
+          "input_sha256": "897848865f346e45cebd7c16ef2be500447534b5097db12bbbae66349f19129f",
+          "output_sha256": "448401abd1ea8768b8e80a228453fea156332da87616ed84c5d29bcdc3ae248c",
+          "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
+          "citations": [
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123; Ljungberg et al. (2016) MIRD Pamphlet No. 26, DOI:10.2967/jnumed.115.159012"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "dfbeb45612efdfdcffbc1bb9b402a45aec50f27f144dc76821e3b901b3e0ca4e",
+        "record": {
+          "record_id": "qn-2985639b0170",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.074298+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "39b2ab2672b48f4776b8a8b459df846f76c4618cb8d7ea64f552cad33f437895",
+        "record": {
+          "record_id": "qn-3d32a02f0c8a",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.074340+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "51ba1b390299bb3344cb0b7cc7cafec9a555af46c1a8e149c03f27d673d6bfbd",
+        "record": {
+          "record_id": "qn-1e114acdc4b9",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.076233+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "4cf6466a368f7ac3e7ae4779f67acbbee76f8674fe513dfa2badfcea0854a303",
+          "output_sha256": "75d907d0d3239504d72a152294679d0db9fb21958a96ad4c9bed238d681c04db",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "3b50b9f00f3b7e299da8c15d98e16197b8af432dd2e9385f2dda0a5fc2c8f03a",
+        "record": {
+          "record_id": "qn-2b8135b7c700",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.078290+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "983d900d435f6a19a121ce555c713115fbaee7a4b4a30aa7821d9fb78cd812bc",
+          "output_sha256": "5f565f79603df475c4d649a785add063d3637dab4d91a786d51c25e96817b0e9",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "751610d518278cbecb6084d83c2c8be1cb266ccd8c8d9b2f209b9c1d71df78a7",
+        "record": {
+          "record_id": "qn-6b6089010d02",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.083180+00:00",
+          "operation": "agent_longitudinal_suv_forensics",
+          "input_sha256": "d8b7ad6ef341a88adfaecd2ba25757a0ca2fd11bc64e25ccd4a43b699aa4edc8",
+          "output_sha256": "3e87281d3335f10bbdb5beab88a547a438977bfa291b784c95c078e57e27686e",
+          "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+          "citations": [
+            "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "db3af8c97caaab7ec2c6c0f4e6feffceca309a200ecf337580784b866325b344",
+        "record": {
+          "record_id": "qn-a3f6a8e94e5f",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.083243+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "4659981b573cab437d2f2d6a792e42b23f10e929d17206e15ece351d61524a93",
+        "record": {
+          "record_id": "qn-a3352e97bd25",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.083269+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "033420742f5b00e8d17cabaf3bea4c107a27a777041a175a79357a2922185b45",
+        "record": {
+          "record_id": "qn-3d10391007f7",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.086083+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "a932c006cc4e7c525924ada78487e1e5f10d7f240bedb4fb697671037faff0bf",
+          "output_sha256": "cfcdae0ca27fb5c1bc5fab533d10795871eb30b9a9052aaf09e29f4efc292c21",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "764f3a4ab121ac45c97a6738729acda72fb23075cdd78a3213374ab75758fb14",
+        "record": {
+          "record_id": "qn-d80fce4426cd",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.089086+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "0ebb3da5037837ad4d7e0a2618cb0ccfd6e2ce3afda72a2290e58de717a9d82e",
+          "output_sha256": "e66f30d64c7f80b317e8b3815286bd1cce0ee62bd5db0514d569d0707b26ca72",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "715654c28626349cba55a5d9ab4e40c4d55e0e78a0a781e5cff7f83c8efb118b",
+        "record": {
+          "record_id": "qn-07ff77696d7d",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.096743+00:00",
+          "operation": "agent_longitudinal_suv_forensics",
+          "input_sha256": "31f815ecfdc248b395e45127d2cbf290c34a08f3752f408ebbfa1d0cec30eef2",
+          "output_sha256": "37d9b1549d4d1246169a2ce7c4b6d8c55b5c8dae4544c9a451852bd651588fc0",
+          "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+          "citations": [
+            "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "5855f322ba44b0b1e0e9d4795467bba155ffcfcb107aa3334b19e8e64539ee84",
+        "record": {
+          "record_id": "qn-3812dac6b323",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.096811+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "b338d9830a443c686fa5f8dd4d7f114faf1e7e5d30b6180bad41f814ed2a2095",
+        "record": {
+          "record_id": "qn-7d3b601d3448",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.096838+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "ab484a98074ec76fbeda9820de7ea9d54ecf8100e37ee2598a49debc1655baa7",
+          "output_sha256": "3f4d435f81dcface86c1074140a02034c410175710df84eab6d0e7f035f39d9e",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "236b3f26e0c9d1fb64acd60966d57bd13c143b55f42c6f2c1b9c5406a4148d6c",
+        "record": {
+          "record_id": "qn-2a1872beee1b",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.099650+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "d7fd20880ae68aab3ab4d964e6fc7a71dbf56349df6c0cc78505fa63ad74fa70",
+          "output_sha256": "163e8fb72fada0759394330317ebcdcf030ee0a637124e998b4dddc566151660",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "784a38657f64666a6f4f75df1557bb74cb9f2863e16f01991fc676f99bf1cdfd",
+        "record": {
+          "record_id": "qn-68bc6c257101",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.102429+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "3bb48c7cf66ad320c265e63dad280f16c1e8135a1966b41efa9a38bf8baccbc4",
+          "output_sha256": "c08a53d5043cc86c314eaf0664c59f67ae853c29dc381aa33a156bdcb153c045",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "fba2ea2a3177f93da30ca348b48e23914e9f02f3cf418af5ea3ffb25109fceff",
+        "record": {
+          "record_id": "qn-43b92298d0e5",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.110085+00:00",
+          "operation": "agent_longitudinal_suv_forensics",
+          "input_sha256": "899593fd277b5d3b9b99bcf4a71828147275f77a22c8bbfdf0cfad5228367ee5",
+          "output_sha256": "2a454252e006bd2d398f2440fca03fffd6489973121b9d6794874f514e324e05",
+          "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+          "citations": [
+            "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "62f8c2d6b7780c7dc01f4a50d941d452efb7a4b5b387d2688c8b85a04a121244",
+        "record": {
+          "record_id": "qn-e04788ddf747",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.110182+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "2731fc4eb14ec60d2cf6dc908ad91870728823deb87c034a480623a54244e24e",
+        "record": {
+          "record_id": "qn-71b1e392022e",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.110213+00:00",
+          "operation": "ct_ac_respiratory_mismatch_forensics",
+          "input_sha256": "47eb0b14a551dd729a47bdf9c5ca555e44ea45f9b7a67dd823fcef0e4f617aa1",
+          "output_sha256": "c15a301d09d78fa6097821cb39123f5fd7fbe5f36b3ad7bb8ead813ee8902a92",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging, DOI:10.1007/s00259-014-2961-x",
+            "Dewaraja et al. (2012) MIRD Pamphlet No. 23, DOI:10.2967/jnumed.111.100123"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "60d8c0f7852e9322392801cbe508b59f9c42b60b430eaf365e3ee3735aecb0d3",
+        "record": {
+          "record_id": "qn-a889734bda6a",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.111985+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "1cf4cd4144a851162295224a7ca63a3439880e7f996b40b202dece2bcd2cb8ad",
+          "output_sha256": "05d9408d151161378a4f6b344927c644db1d2b9c344a0da40a17746cdb51d6c1",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "2a520e61590476c6c8489515568130728297ec4459b3b80d27749305abaf98d1",
+        "record": {
+          "record_id": "qn-d090c17241bb",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.113910+00:00",
+          "operation": "pve_inverse_activity_recovery_gtm_exact",
+          "input_sha256": "a6176cbaef452bcb19027cb6d432b0808eb304ef69e33f146b8173866355ccc9",
+          "output_sha256": "c8e16d5a277e489450499525e3b9bb6abb8ad8848a65a9fc36ed6160f361c7b0",
+          "data_source_tag": "ANALYTICAL_PHYSICS_MODEL",
+          "citations": [
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599",
+            "Muller-Gartner et al. (1992) J Cereb Blood Flow Metab 12(4):571-583, DOI:10.1038/jcbfm.1992.81"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      },
+      {
+        "chain_sha256": "7e6ab2894960d3ab08caca77a912c4a155a846d30cece33d096e7adaa25b5b5d",
+        "record": {
+          "record_id": "qn-2a8291c5aa3d",
+          "engine_version": "0.1.0",
+          "timestamp_utc": "2026-11-22T22:14:22.118390+00:00",
+          "operation": "agent_longitudinal_suv_forensics",
+          "input_sha256": "441f5c7182085442bd1f6ceed67c8a7f80c8b65d2e3cb0a5ce14c2635e56d7f5",
+          "output_sha256": "bee15f2488f88d023f40c96add89d06a0d2cb4b6cd2fa4d664ff4d93b9b8754d",
+          "data_source_tag": "AGENT_FORENSICS_PHYSICS_DECOMPOSITION",
+          "citations": [
+            "Kaalep et al. (2018) EJNMMI Phys 5:14, DOI:10.1186/s40658-018-0226-7",
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+            "Rousset, Ma, & Evans (1998) J Nucl Med 39(5):904-911, PMID:9591599"
+          ],
+          "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE"
+        }
+      }
+    ]
+  }
+}
