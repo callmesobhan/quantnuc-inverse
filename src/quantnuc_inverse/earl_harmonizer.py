@@ -33,6 +33,7 @@ from quantnuc_inverse.forward_image_formation import (
 from quantnuc_inverse.ir import (
     EARLCorridorSpec,
     HarmonizationFilterResult,
+    ParetoHarmonizationPoint,
     ReconConfig,
     ScannerSpec,
 )
@@ -42,6 +43,47 @@ from quantnuc_inverse.provenance import (
 )
 
 CorridorName = Literal["EARL1", "EARL2", "QIBA_FDG_PET", "MIRD23_SPECT"]
+
+
+def estimate_background_cov_pct(
+    scanner: ScannerSpec,
+    recon: ReconConfig,
+) -> float:
+    """Estimate NEMA background noise Coefficient of Variation (COV %) per EANM/EARL criteria.
+
+    Scales physically with:
+    - OSEM iteration-subset updates: sqrt(N_iter * N_sub / 48)
+    - Scanner sensitivity & voxel volume: 1 / sqrt(sensitivity * voxel_vol_mm3)
+    - Time-of-Flight (TOF) SNR gain: sqrt(TOF_ps / 450)
+    - 3D post-reconstruction filter volume smoothing: (1 + (FWHM_post / 3.8)^2)^(-0.75)
+    - BSREM penalty beta noise suppression.
+    """
+    vox_vol = scanner.voxel_size_mm[0] * scanner.voxel_size_mm[1] * scanner.voxel_size_mm[2]
+    # Calibrated base COV (%) for standard 2-min/bed NEMA phantom (5.3 kBq/mL background)
+    sens_factor = math.sqrt(12.0 / max(scanner.sensitivity_cps_per_kbq, 0.5))
+    vox_factor = math.sqrt(8.0 / max(vox_vol, 1.0))
+    iter_factor = math.sqrt((recon.iterations * recon.subsets) / 48.0)
+
+    tof_factor = 1.0
+    if scanner.tof_resolution_ps is not None:
+        tof_factor = math.sqrt(min(scanner.tof_resolution_ps, 600.0) / 450.0)
+
+    # Resolution modeling slightly correlates adjacent voxels (small variance change)
+    psf_factor = 1.06 if (scanner.has_psf_modeling or recon.algorithm in {"PSF_OSEM", "TOF_PSF_OSEM"}) else 1.0
+
+    # 3D Gaussian / Butterworth low-pass noise reduction scales with effective filter volume
+    fwhm_p = max(0.0, recon.post_filter_fwhm_mm)
+    filt_factor = (1.0 + (fwhm_p / 3.6) ** 2) ** (-0.72)
+
+    beta_factor = 1.0
+    if recon.algorithm == "BSREM" and recon.bsrem_beta is not None and recon.bsrem_beta > 0.0:
+        beta_factor = 1.0 / (1.0 + math.sqrt(recon.bsrem_beta / 350.0) * 0.55)
+
+    # SPECT operates with much lower sensitivity but larger collimated effective smoothing volume
+    modality_scale = 0.62 if scanner.modality.startswith("SPECT") else 1.0
+
+    cov_pct = 17.5 * sens_factor * vox_factor * iter_factor * tof_factor * psf_factor * filt_factor * beta_factor * modality_scale
+    return float(max(0.5, cov_pct))
 
 
 def get_corridor_spec(standard_name: CorridorName) -> EARLCorridorSpec:
@@ -331,6 +373,8 @@ def synthesize_harmonization_filter(
     filter_type: Literal["gaussian", "butterworth"] = "gaussian",
     max_filter_fwhm_mm: float = 12.0,
     allow_iteration_tuning: bool = True,
+    max_allowed_cov_pct: float = 15.0,
+    enforce_noise_constraint: bool = False,
     raise_on_infeasible: bool = False,
     radial_offset_mm: float = 57.2,
 ) -> HarmonizationFilterResult:
@@ -338,7 +382,8 @@ def synthesize_harmonization_filter(
 
     Objective:
         Minimize post-filter FWHM (preserving maximum diagnostic sharpness) subject to zero
-        violation across all 6 NEMA sphere RCmean, RCmax, and RCpeak acceptability limits.
+        violation across all 6 NEMA sphere RCmean, RCmax, and RCpeak acceptability limits
+        (and optionally EANM/EARL background noise COV <= max_allowed_cov_pct, default 15%).
     """
     evaluator = _CachedSphereEvaluator(corridor.sphere_diameters_mm, scanner.voxel_size_mm)
 
@@ -360,7 +405,9 @@ def synthesize_harmonization_filter(
     best_feasible = False
 
     for n_iter in iter_candidates:
-        def _eval_at_fwhm(fwhm_val: float, _iters: int = n_iter) -> tuple[float, float, dict[str, float], dict[str, float], dict[str, float]]:
+        def _eval_at_fwhm(
+            fwhm_val: float, _iters: int = n_iter
+        ) -> tuple[float, float, float, dict[str, float], dict[str, float], dict[str, float]]:
             cfg = recon.model_copy(
                 update={
                     "iterations": _iters,
@@ -370,60 +417,61 @@ def synthesize_harmonization_filter(
             )
             m, mx, pk = evaluator.evaluate(scanner, cfg, radial_offset_mm=radial_offset_mm)
             mv, sse = compute_corridor_violation(corridor, m, mx, pk)
-            return mv, sse, m, mx, pk
+            cov = estimate_background_cov_pct(scanner, cfg)
+            return mv, sse, cov, m, mx, pk
+
+        def _is_pt_feasible(mv_val: float, cov_val: float) -> bool:
+            return (mv_val <= 1e-6) and ((not enforce_noise_constraint) or (cov_val <= max_allowed_cov_pct))
 
         # Coarse sweep over [0, max_filter_fwhm_mm] to detect exact feasible interval
         grid_fwhm = np.linspace(0.0, max_filter_fwhm_mm, 25)
         grid_results = [(float(f), *_eval_at_fwhm(float(f))) for f in grid_fwhm]
 
-        feasible_pts = [r for r in grid_results if r[1] <= 1e-6]
+        feasible_pts = [r for r in grid_results if _is_pt_feasible(r[1], r[3])]
         if feasible_pts:
-            # Find the MINIMAL FWHM that stays inside the corridor via bisection on the left edge
-            first_feas_idx = next(i for i, r in enumerate(grid_results) if r[1] <= 1e-6)
+            # Find the MINIMAL FWHM that stays inside the corridor (+ noise bound if enforced)
+            first_feas_idx = next(i for i, r in enumerate(grid_results) if _is_pt_feasible(r[1], r[3]))
             if first_feas_idx == 0:
                 cand_fwhm = 0.0
-                cand_mv, _, cm, cmx, cpk = grid_results[0][1:]
+                cand_mv, _, _, cm, cmx, cpk = grid_results[0][1:]
             else:
                 lo_f = grid_results[first_feas_idx - 1][0]
                 hi_f = grid_results[first_feas_idx][0]
-                # Bisect for minimal feasible FWHM with slight 0.05 mm safety margin
                 for _ in range(10):
                     mid = 0.5 * (lo_f + hi_f)
-                    mv_mid, _, _, _, _ = _eval_at_fwhm(mid)
-                    if mv_mid <= 1e-6:
+                    mv_mid, _, cov_mid, _, _, _ = _eval_at_fwhm(mid)
+                    if _is_pt_feasible(mv_mid, cov_mid):
                         hi_f = mid
                     else:
                         lo_f = mid
                 cand_fwhm = min(max_filter_fwhm_mm, hi_f + 0.05)
-                cand_mv, _, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
-                if cand_mv > 1e-6:
+                cand_mv, _, cand_cov, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
+                if not _is_pt_feasible(cand_mv, cand_cov):
                     cand_fwhm = hi_f
-                    cand_mv, _, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
+                    cand_mv, _, _, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
 
-            # Prefer feasible solution with smallest FWHM (highest sharpness)
             if (not best_feasible) or (cand_fwhm < best_fwhm):
                 best_feasible = True
                 best_fwhm = cand_fwhm
                 best_iters = n_iter
                 best_max_viol = cand_mv
                 best_metrics = (cm, cmx, cpk)
-                # Baseline iteration already feasible -> stop searching higher iterations
                 if n_iter == recon.iterations:
                     break
         else:
-            # Minimize violation via bounded Brent optimization
             best_grid = min(grid_results, key=lambda r: (r[1], r[2]))
             bracket_lo = max(0.0, best_grid[0] - 1.0)
             bracket_hi = min(max_filter_fwhm_mm, best_grid[0] + 1.0)
 
             def _loss(x: float) -> float:
-                mv_x, sse_x, _, _, _ = _eval_at_fwhm(float(x))
-                return mv_x + 5.0 * sse_x + 1e-4 * float(x)
+                mv_x, sse_x, cov_x, _, _, _ = _eval_at_fwhm(float(x))
+                noise_pen = max(0.0, cov_x - max_allowed_cov_pct) * 0.1 if enforce_noise_constraint else 0.0
+                return mv_x + 5.0 * sse_x + noise_pen + 1e-4 * float(x)
 
             opt = minimize_scalar(_loss, bounds=(bracket_lo, bracket_hi), method="bounded", options={"xatol": 0.02})
             cand_fwhm = float(opt.x)
-            cand_mv, _, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
-            cand_feasible = cand_mv <= 1e-3
+            cand_mv, _, cand_cov, cm, cmx, cpk = _eval_at_fwhm(cand_fwhm)
+            cand_feasible = (cand_mv <= 1e-3) and ((not enforce_noise_constraint) or (cand_cov <= max_allowed_cov_pct))
 
             if cand_feasible and ((not best_feasible) or (cand_fwhm < best_fwhm)):
                 best_feasible = True
@@ -459,12 +507,23 @@ def synthesize_harmonization_filter(
     post_xy = math.hypot(pre_xy, best_fwhm)
     sharpness_ratio = float(min(1.0, pre_xy / max(post_xy, 1e-6)))
 
+    final_cfg = recon.model_copy(
+        update={
+            "iterations": best_iters,
+            "post_filter_fwhm_mm": best_fwhm,
+            "filter_type": filter_type,
+        }
+    )
+    bg_cov = estimate_background_cov_pct(scanner, final_cfg)
+    noise_ok = bg_cov <= max_allowed_cov_pct
+    # Small-lesion (13 mm) Contrast-to-Noise Ratio: (RC_mean(13mm)*4 - 1) / (COV/100)
+    rc13 = post_mean.get("13mm", next(iter(post_mean.values())))
+    cnr = float(max(0.0, (4.0 * rc13 - 1.0) / max(bg_cov / 100.0, 1e-3)))
+
     bw_cutoff = float(0.44 / best_fwhm) if (filter_type == "butterworth" and best_fwhm > 0.0) else None
 
-    # Equivalent BSREM beta recommendation (for GE Q.Clear / penalized-likelihood scanners)
     rec_beta: float | None = None
     if recon.algorithm == "BSREM" or scanner.modality in {"PET_SIPM", "PET_TOF_PSF"}:
-        # Calibrated monotonic mapping from post-filter FWHM to BSREM beta penalty
         rec_beta = float(round(200.0 + 45.0 * (best_fwhm**1.6), 1))
 
     inputs = {
@@ -472,12 +531,16 @@ def synthesize_harmonization_filter(
         "recon": recon,
         "corridor": corridor.standard_name,
         "filter_type": filter_type,
+        "max_allowed_cov_pct": max_allowed_cov_pct,
+        "enforce_noise_constraint": enforce_noise_constraint,
     }
     outputs = {
         "feasible": best_feasible,
         "optimal_post_filter_fwhm_mm": best_fwhm,
         "recommended_iterations": best_iters,
         "max_corridor_violation_after": best_max_viol,
+        "background_cov_pct": bg_cov,
+        "cnr_score": cnr,
     }
     prov = build_provenance_record(
         operation="earl_harmonization_filter_synthesis",
@@ -505,5 +568,54 @@ def synthesize_harmonization_filter(
         max_corridor_violation_before=float(round(max_viol_before, 6)),
         max_corridor_violation_after=float(round(best_max_viol, 6)),
         sharpness_retention_ratio=float(round(sharpness_ratio, 4)),
+        background_cov_pct=float(round(bg_cov, 2)),
+        max_allowed_cov_pct=float(max_allowed_cov_pct),
+        noise_compliant=noise_ok,
+        cnr_score=float(round(cnr, 2)),
         provenance=prov,
     )
+
+
+def compute_harmonization_pareto_frontier(
+    scanner: ScannerSpec,
+    recon: ReconConfig,
+    corridor: EARLCorridorSpec,
+    *,
+    fwhm_grid_mm: list[float] | None = None,
+    iteration_grid: list[int] | None = None,
+    max_allowed_cov_pct: float = 15.0,
+    radial_offset_mm: float = 57.2,
+) -> list[ParetoHarmonizationPoint]:
+    """Sweep (post-filter FWHM, iterations) to map RC-compliance vs. noise COV (%) vs. CNR Pareto space."""
+    fwhms = fwhm_grid_mm if fwhm_grid_mm is not None else [float(x) for x in np.linspace(0.0, 9.5, 20)]
+    iters = iteration_grid if iteration_grid is not None else [2, 4, 6]
+    evaluator = _CachedSphereEvaluator(corridor.sphere_diameters_mm, scanner.voxel_size_mm)
+
+    points: list[ParetoHarmonizationPoint] = []
+    for n_it in iters:
+        pre_xy, _ = effective_psf_fwhm_mm(
+            scanner,
+            recon.model_copy(update={"iterations": n_it, "post_filter_fwhm_mm": 0.0}),
+            radial_offset_mm=radial_offset_mm,
+            include_post_filter=False,
+        )
+        for fw in fwhms:
+            cfg = recon.model_copy(update={"iterations": n_it, "post_filter_fwhm_mm": fw})
+            m, mx, pk = evaluator.evaluate(scanner, cfg, radial_offset_mm=radial_offset_mm)
+            mv, _ = compute_corridor_violation(corridor, m, mx, pk)
+            cov = estimate_background_cov_pct(scanner, cfg)
+            rc13 = m.get("13mm", next(iter(m.values())))
+            cnr = float(max(0.0, (4.0 * rc13 - 1.0) / max(cov / 100.0, 1e-3)))
+            sharp = float(min(1.0, pre_xy / max(math.hypot(pre_xy, fw), 1e-6)))
+            points.append(
+                ParetoHarmonizationPoint(
+                    post_filter_fwhm_mm=float(round(fw, 3)),
+                    iterations=int(n_it),
+                    max_corridor_violation=float(round(mv, 5)),
+                    background_cov_pct=float(round(cov, 2)),
+                    cnr_score=float(round(cnr, 2)),
+                    sharpness_retention_ratio=float(round(sharp, 4)),
+                    feasible_earl_and_noise=(mv <= 1e-4) and (cov <= max_allowed_cov_pct),
+                )
+            )
+    return points

@@ -370,3 +370,187 @@ def load_ct_hu_slice(path: str | Path) -> tuple[np.ndarray, tuple[float, float, 
     ps = getattr(ds, "PixelSpacing", [2.0, 2.0])
     dz = float(getattr(ds, "SliceThickness", 2.0))
     return hu, (dz, float(ps[0]), float(ps[1]))
+
+
+def build_synthetic_dicom_series(
+    volume_3d: np.ndarray,
+    output_dir: str | Path,
+    *,
+    modality: Literal["PT", "NM", "CT"] = "PT",
+    voxel_size_mm: tuple[float, float, float] = (2.0, 2.0, 2.0),
+    z_origin_mm: float = 0.0,
+    injected_dose_bq: float = 3.0e8,
+    injection_time_hhmmss: str = "090000",
+    scan_time_hhmmss: str = "100000",
+    half_life_s: float = 6586.2,
+    patient_weight_kg: float = 70.0,
+    decay_correction: str = "START",
+    units: str = "BQML",
+    patient_id: str = "SERIES_3D_DRO",
+) -> list[Path]:
+    """Write a compliant multi-slice 3D DICOM series directory with ImagePositionPatient z-ordering."""
+    vol = np.asarray(volume_3d, dtype=np.float64)
+    if vol.ndim != 3:
+        raise ValueError("volume_3d must be a 3D array of shape (nz, ny, nx).")
+
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    series_uid = generate_uid()
+    study_uid = generate_uid()
+    dz, dy, dx = voxel_size_mm
+    written: list[Path] = []
+
+    for z_idx in range(vol.shape[0]):
+        fpath = out_dir / f"{modality.lower()}_slice_{z_idx:04d}.dcm"
+        if modality == "CT":
+            build_synthetic_ct_dicom(vol[z_idx], fpath, voxel_size_mm=voxel_size_mm, patient_id=patient_id)
+        else:
+            build_synthetic_nucmed_dicom(
+                vol[z_idx],
+                fpath,
+                modality=modality,
+                voxel_size_mm=voxel_size_mm,
+                injected_dose_bq=injected_dose_bq,
+                injection_time_hhmmss=injection_time_hhmmss,
+                scan_time_hhmmss=scan_time_hhmmss,
+                half_life_s=half_life_s,
+                patient_weight_kg=patient_weight_kg,
+                decay_correction=decay_correction,
+                units=units,
+                patient_id=patient_id,
+            )
+        ds = pydicom.dcmread(str(fpath))
+        ds.StudyInstanceUID = study_uid
+        ds.SeriesInstanceUID = series_uid
+        ds.InstanceNumber = int(z_idx + 1)
+        ds.ImagePositionPatient = [0.0, 0.0, float(z_origin_mm + z_idx * dz)]
+        ds.ImageOrientationPatient = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+        ds.save_as(str(fpath), enforce_file_format=True)
+        written.append(fpath)
+
+    return written
+
+
+def load_dicom_series_3d(
+    series_dir: str | Path,
+    *,
+    data_source_tag: str = "CLINICAL_OR_PHANTOM_DICOM_SERIES",
+) -> QuantDicomVolume:
+    """Load a multi-slice 3D PET (`PT`) or SPECT (`NM`) DICOM directory sorted by ImagePositionPatient[2]."""
+    sdir = Path(series_dir)
+    dcm_files = sorted(p for p in sdir.glob("*.dcm") if p.is_file())
+    if not dcm_files:
+        raise AbstentionError(
+            AbstentionCode.UNCALIBRATED_SUV_METADATA,
+            f"No .dcm slice files found in directory '{sdir}'.",
+            details={"series_dir": str(sdir)},
+        )
+
+    indexed_slices: list[tuple[float, Path]] = []
+    for fpath in dcm_files:
+        ds = pydicom.dcmread(str(fpath), stop_before_pixels=True)
+        ipp = getattr(ds, "ImagePositionPatient", None)
+        z_pos = float(ipp[2]) if (ipp is not None and len(ipp) >= 3) else float(getattr(ds, "InstanceNumber", 0))
+        indexed_slices.append((z_pos, fpath))
+    indexed_slices.sort(key=lambda item: item[0])
+
+    loaded_slices = [load_quantitative_nucmed_dicom(p, data_source_tag=data_source_tag) for _, p in indexed_slices]
+    ref = loaded_slices[0]
+
+    act_3d = np.stack([s.activity_bq_ml for s in loaded_slices], axis=0)
+    suvbw_3d = np.stack([s.suvbw for s in loaded_slices], axis=0)
+    suvlbm_3d = np.stack([s.suvlbm for s in loaded_slices], axis=0)
+
+    if len(indexed_slices) >= 2:
+        dz_est = float(np.median(np.diff([z for z, _ in indexed_slices])))
+        dz_val = dz_est if dz_est > 0.0 else ref.voxel_size_mm[0]
+    else:
+        dz_val = ref.voxel_size_mm[0]
+    vox = (dz_val, ref.voxel_size_mm[1], ref.voxel_size_mm[2])
+
+    prov = build_provenance_record(
+        operation="dicom_3d_series_quantitative_load",
+        inputs={"series_dir": sdir.name, "n_slices": len(loaded_slices), "modality": ref.modality},
+        outputs={"shape": list(act_3d.shape), "voxel_size_mm": list(vox), "max_suvbw": float(np.max(suvbw_3d))},
+        data_source_tag=data_source_tag,
+        citations=["Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x"],
+    )
+
+    return QuantDicomVolume(
+        modality=ref.modality,
+        activity_bq_ml=act_3d,
+        suvbw=suvbw_3d,
+        suvlbm=suvlbm_3d,
+        voxel_size_mm=vox,
+        injected_dose_bq=ref.injected_dose_bq,
+        decay_corrected_dose_bq=ref.decay_corrected_dose_bq,
+        decay_elapsed_s=ref.decay_elapsed_s,
+        half_life_s=ref.half_life_s,
+        patient_weight_kg=ref.patient_weight_kg,
+        patient_lbm_kg=ref.patient_lbm_kg,
+        decay_correction_tag=ref.decay_correction_tag,
+        units=ref.units,
+        provenance=prov,
+    )
+
+
+def load_ct_dicom_series_3d(series_dir: str | Path) -> tuple[np.ndarray, tuple[float, float, float]]:
+    """Load a multi-slice 3D CT DICOM series directory sorted by ImagePositionPatient[2]."""
+    sdir = Path(series_dir)
+    dcm_files = sorted(p for p in sdir.glob("*.dcm") if p.is_file())
+    if not dcm_files:
+        raise ValueError(f"No .dcm CT slices found in '{sdir}'.")
+
+    indexed: list[tuple[float, Path]] = []
+    for p in dcm_files:
+        ds = pydicom.dcmread(str(p), stop_before_pixels=True)
+        ipp = getattr(ds, "ImagePositionPatient", None)
+        z_pos = float(ipp[2]) if (ipp is not None and len(ipp) >= 3) else float(getattr(ds, "InstanceNumber", 0))
+        indexed.append((z_pos, p))
+    indexed.sort(key=lambda item: item[0])
+
+    slices, vox_ref = [], (2.0, 2.0, 2.0)
+    for _, p in indexed:
+        hu_slc, vox_ref = load_ct_hu_slice(p)
+        slices.append(hu_slc)
+    dz_val = float(np.median(np.diff([z for z, _ in indexed]))) if len(indexed) >= 2 else vox_ref[0]
+    if dz_val <= 0.0:
+        dz_val = vox_ref[0]
+    return np.stack(slices, axis=0), (dz_val, vox_ref[1], vox_ref[2])
+
+
+def resample_ct_to_pet_grid(
+    ct_hu_3d: np.ndarray,
+    ct_voxel_size_mm: tuple[float, float, float],
+    pet_shape: tuple[int, int, int],
+    pet_voxel_size_mm: tuple[float, float, float],
+    *,
+    shift_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> np.ndarray:
+    """Resample a 3D CT HU volume onto a PET/SPECT voxel grid with optional 3D shift (dz, dy, dx) in mm."""
+    from scipy.ndimage import affine_transform
+
+    ct = np.asarray(ct_hu_3d, dtype=np.float64)
+    if ct.ndim != 3:
+        raise ValueError("ct_hu_3d must be a 3D volume.")
+
+    # Map output PET index i_pet -> physical coord relative to center -> input CT index i_ct
+    scale = np.array(
+        [pet_voxel_size_mm[k] / ct_voxel_size_mm[k] for k in range(3)],
+        dtype=np.float64,
+    )
+    pet_center = np.array([(pet_shape[k] - 1) / 2.0 for k in range(3)], dtype=np.float64)
+    ct_center = np.array([(ct.shape[k] - 1) / 2.0 for k in range(3)], dtype=np.float64)
+    shift_ct_vox = np.array([shift_mm[k] / ct_voxel_size_mm[k] for k in range(3)], dtype=np.float64)
+
+    offset = ct_center - scale * pet_center + shift_ct_vox
+    resampled = affine_transform(
+        ct,
+        matrix=np.diag(scale),
+        offset=offset,
+        output_shape=pet_shape,
+        order=1,
+        mode="constant",
+        cval=-1000.0,
+    )
+    return resampled.astype(np.float64, copy=False)

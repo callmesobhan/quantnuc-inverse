@@ -3,11 +3,12 @@
 **Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine with Frontier Agent Harness & MCP Server**
 
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](pyproject.toml)
+[![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-teal.svg)](pyproject.toml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
-[![Tests: 30 Passed](https://img.shields.io/badge/tests-30%20passed%20(0%20warnings)-brightgreen.svg)](docs/AUDIT_REPORT.md)
-[![Coverage: 94.6%](https://img.shields.io/badge/coverage-94.6%25-brightgreen.svg)](docs/AUDIT_REPORT.md)
+[![Tests: 38 Passed](https://img.shields.io/badge/tests-38%20passed%20(0%20warnings)-brightgreen.svg)](docs/AUDIT_REPORT.md)
+[![Coverage: 95.4%](https://img.shields.io/badge/coverage-95.4%25-brightgreen.svg)](docs/AUDIT_REPORT.md)
 [![Ruff: 0 Errors](https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg)](pyproject.toml)
-[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-6%20Physics%20Tools-blueviolet.svg)](src/quantnuc_inverse/harness/mcp_server.py)
+[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-9%20Physics%20Tools-blueviolet.svg)](src/quantnuc_inverse/harness/mcp_server.py)
 
 > **Research Software — NOT A MEDICAL DEVICE.** This repository is strictly for nuclear medicine physics research, phantom benchmarking, method development, and educational exploration. It is **not** FDA-cleared, CE-marked, or validated for clinical diagnosis, patient staging, or therapeutic dosimetry prescription.
 
@@ -66,7 +67,7 @@ flowchart LR
 | **PET DICOM SUVbw / SUVlbm Round-Trip Fidelity** (`START` & `ADMIN` decay) | `< 0.1%` vs. analytical | **`< 0.05%`** |
 | **CT-AC +10 mm / −10 mm Shift (511 keV PET)** | Physical exponential bias | **`−25.8%`** (false-cold) / **`+34.7%`** (false-hot) |
 | **ΔSUV Attribution Conservation Error** (4 clinical scenarios) | `<= 0.15%` | **`0.01%`** |
-| **Test Suite, Coverage & Static Analysis** | `>= 25` tests, `0` warnings, `>= 75%` cov | **30 passed**, **`0` warnings**, **`94.61%` coverage**, **`0` ruff errors** |
+| **Test Suite, Coverage & Static Analysis** | `>= 25` tests, `0` warnings, `>= 75%` cov | **38 passed**, **`0` warnings**, **`95.38%` coverage**, **`0` ruff errors** |
 
 ---
 
@@ -91,6 +92,12 @@ All six figures are reproducibly generated via `scripts/generate_figures.py` and
 
 ### 6. Saltelli–Jansen QMC Global Sobol' Sensitivity (Small vs. Large Lesion Regime Crossover)
 ![Sobol Quantitative Variance Sensitivity](figures/fig6_sobol_quantitative_variance.png)
+
+### 7. MIRD-26 $^{177}\text{Lu}$ PVE-Propagated Theranostic Absorbed Dose & PET Positron-Range Loss (`v0.2.0`)
+![Theranostics PVE Dosimetry and Positron Range](figures/fig7_theranostics_pve_dosimetry.png)
+
+### 8. Noise-Constrained EARL2 Pareto Frontier ($\text{COV} \le 15\%$) & Necrotic-Core RBV PVC (`v0.2.0`)
+![EARL2 Noise Pareto Frontier and RBV PVC](figures/fig8_earl_noise_pareto_and_rbv.png)
 
 ---
 
@@ -178,13 +185,25 @@ Or register in an MCP client configuration:
 }
 ```
 
-**Exposed Provenance-Gated Tools (6):**
+**Exposed Provenance-Gated Tools (9):**
 - `quantnuc_forward_nema_rc` — 3D NEMA NU 2-2018 6-sphere RCmean / RCmax / RCpeak simulation.
 - `quantnuc_invert_pve_activity` — Rousset GTM, Müller–Gärtner, or Bayesian PVC inversion with 90% CI.
 - `quantnuc_synthesize_earl_filter` — Minimal Gaussian/Butterworth EARL1/EARL2/QIBA/MIRD-23 filter synthesizer.
 - `quantnuc_audit_ct_ac_mismatch` — Exact $\exp(\int \Delta\mu\,ds)$ CT-AC respiratory bias & abstention audit.
 - `quantnuc_diagnose_suv_shift` — Longitudinal $\Delta\text{SUV}$ hypothesis falsification & attribution.
 - `quantnuc_run_sobol_sensitivity` — Saltelli–Jansen QMC global Sobol' sensitivity ($S_1, S_T$, bootstrap CIs).
+- `quantnuc_compute_theranostic_dose` — MIRD-23/26 PVE-propagated multi-timepoint tumor absorbed dose (Gy).
+- `quantnuc_audit_3d_ct_ac_volume` — 3D bilinear HU-to-$\mu(E)$ volumetric CT-AC respiratory bias audit.
+- `quantnuc_generate_physics_dossier` — Autonomous Forensics Physicist + Critic-Verifier Audit dossier.
+
+**CLI Subcommands (`uv run quantnuc ...`):**
+```bash
+uv run quantnuc harmonize --pet-standard EARL2 --noise-constrained
+uv run quantnuc pvc --diameter 12 --observed-suv 5.1 --background-suv 2.0
+uv run quantnuc audit-ac --shift-mm 10.0 --energy-kev 511.0
+uv run quantnuc dose --diameter 14 --isotope Lu-177
+uv run quantnuc dossier --output-dir outputs/dossier
+```
 </details>
 
 ---

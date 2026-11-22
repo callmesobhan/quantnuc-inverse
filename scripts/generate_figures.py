@@ -23,6 +23,7 @@ from matplotlib.patches import Rectangle
 from quantnuc_inverse import __version__
 from quantnuc_inverse.earl_harmonizer import (
     build_reference_scanner_fleet,
+    compute_harmonization_pareto_frontier,
     get_corridor_spec,
     synthesize_harmonization_filter,
 )
@@ -35,9 +36,19 @@ from quantnuc_inverse.forward_image_formation import (
     simulate_ct_ac_dome_field_2d,
 )
 from quantnuc_inverse.harness.agent_orchestrator import QuantitativeImagingForensicsAgent
-from quantnuc_inverse.ir import RESEARCH_DISCLAIMER, LesionROI
-from quantnuc_inverse.pve_inverse_solver import invert_lesion_activity, solve_gtm_multi_region
+from quantnuc_inverse.ir import RESEARCH_DISCLAIMER, LesionROI, TimeActivityPoint
+from quantnuc_inverse.pve_inverse_solver import (
+    apply_rbv_pvc,
+    build_necrotic_tumor_phantom,
+    invert_lesion_activity,
+    solve_gtm_multi_region,
+)
 from quantnuc_inverse.sobol_sensitivity import run_sobol_sensitivity
+from quantnuc_inverse.theranostics_dosimetry import (
+    compute_mird_sphere_s_factor,
+    compute_pve_propagated_theranostic_dose,
+    fit_tiac_mbq_h_per_ml,
+)
 
 # Okabe-Ito colorblind-safe palette
 OI = {
@@ -740,6 +751,253 @@ def generate_fig6_sobol_sensitivity(out_dir: Path) -> None:
     _save_fig(fig, out_dir, "fig6_sobol_quantitative_variance")
 
 
+def generate_fig7_theranostics_and_positron_range(out_dir: Path) -> None:
+    """Figure 7: MIRD-26 Lu-177 PVE-propagated absorbed dose (Gy) + multi-isotope positron-range RC loss."""
+    fleet = build_reference_scanner_fleet()
+    sipm_sc, sipm_rc = fleet[0]
+    spect_sc, spect_rc = fleet[3]
+    spect_harm = spect_rc.model_copy(update={"post_filter_fwhm_mm": 4.0})
+
+    # Panel A: Lu-177 SPECT tumor absorbed dose across 10-40 mm (same true biological concentration TAC)
+    diams = np.array([10.0, 12.0, 15.0, 18.0, 22.0, 28.0, 34.0, 40.0])
+    times_h = [4.0, 24.0, 72.0, 168.0]
+    true_acts = [2.40, 1.92, 1.12, 0.41]  # MBq/mL true tumor concentration (T_eff ~ 65 h)
+    bg_acts = [0.15, 0.11, 0.06, 0.02]
+
+    true_doses, uncorr_doses, pvc_noms, pvc_p05s, pvc_p95s = [], [], [], [], []
+    true_tiac, _, _ = fit_tiac_mbq_h_per_ml(times_h, true_acts, isotope="Lu-177", fit_model="MONO_EXPONENTIAL")
+
+    for d in diams:
+        s_fac, mass_g = compute_mird_sphere_s_factor(float(d), isotope="Lu-177")
+        vol_ml = mass_g / 1.04
+        true_doses.append(true_tiac * vol_ml * 3600.0 * s_fac * 1e-3)
+
+        tps = []
+        for t_h, t_act, b_act in zip(times_h, true_acts, bg_acts, strict=True):
+            rc_i = compute_sphere_recovery_coefficients(
+                float(d), spect_sc, spect_harm, true_activity=t_act, background_activity=b_act, radial_offset_mm=40.0
+            )
+            tps.append(
+                TimeActivityPoint(
+                    time_hours=t_h,
+                    observed_activity_mbq_ml=float(t_act * rc_i["rc_mean_true_voi"]),
+                    background_activity_mbq_ml=b_act,
+                )
+            )
+        res = compute_pve_propagated_theranostic_dose(
+            lesion_id=f"LU_{int(d)}",
+            lesion_diameter_mm=float(d),
+            timepoints=tps,
+            scanner=spect_sc,
+            recon=spect_harm,
+            isotope="Lu-177",
+            fit_model="MONO_EXPONENTIAL",
+        )
+        uncorr_doses.append(res.uncorrected_dose_gy)
+        pvc_noms.append(res.pvc_dose_nominal_gy)
+        pvc_p05s.append(res.pvc_dose_p05_gy)
+        pvc_p95s.append(res.pvc_dose_p95_gy)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.6, 5.1))
+
+    ax1.plot(diams, true_doses, color=OI["black"], ls="--", lw=1.7, label="Ground-Truth MIRD-26 Self-Dose")
+    ax1.fill_between(diams, pvc_p05s, pvc_p95s, color=OI["green"], alpha=0.22, label="GTM PVE-Corrected 90% CI [p05, p95]")
+    ax1.plot(diams, pvc_noms, color=OI["green"], marker="o", lw=2.2, ms=5.5, label="GTM PVE-Corrected Dose (Nominal)")
+    ax1.plot(diams, uncorr_doses, color=OI["vermilion"], marker="s", lw=2.2, ms=5.5, label="Uncorrected CZT SPECT Dose (PVE Loss)")
+
+    under_12 = (uncorr_doses[1] - true_doses[1]) / true_doses[1] * 100.0
+    ax1.annotate(
+        f"12 mm tumor:\n{under_12:.0f}% dose underestimation\nwithout PVC",
+        xy=(12.0, uncorr_doses[1]),
+        xytext=(19.0, 9.5),
+        fontsize=8.1,
+        fontweight="bold",
+        color=OI["vermilion"],
+        arrowprops={"arrowstyle": "->", "color": OI["vermilion"], "lw": 1.3},
+    )
+    ax1.set_title(r"A. $^{177}$Lu CZT SPECT/CT Tumor Absorbed Dose (MIRD-26)", loc="left")
+    ax1.set_xlabel("Tumor Inner Diameter (mm)")
+    ax1.set_ylabel("Absorbed Dose (Gy)")
+    ax1.set_xlim(9.0, 41.2)
+    ax1.set_ylim(0.0, max(pvc_p95s) * 1.15)
+    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.legend(loc="lower right", fontsize=7.6)
+
+    # Panel B: Isotope Positron-Range impact on NEMA spheres (F-18 vs Zr-89 vs Ga-68 water vs Ga-68 lung)
+    nema_d = np.array(NEMA_NU2_2018_DIAMETERS_MM)
+    sipm_clean_rc = sipm_rc.model_copy(update={"algorithm": "OSEM", "post_filter_fwhm_mm": 2.0})
+    iso_configs = [
+        ("F-18", 1.0, OI["blue"], "o", "-", r"$^{18}$F (Soft Tissue, $\rho=1.0$ g/cm³)"),
+        ("Zr-89", 1.0, OI["green"], "s", "-", r"$^{89}$Zr (Soft Tissue, $\rho=1.0$ g/cm³)"),
+        ("Ga-68", 1.0, OI["orange"], "^", "-", r"$^{68}$Ga (Soft Tissue, $\rho=1.0$ g/cm³)"),
+        ("Ga-68", 0.27, OI["vermilion"], "D", "--", r"$^{68}$Ga (Inflated Lung, $\rho=0.27$ g/cm³)"),
+    ]
+    for iso, rho, col, mk, ls, lbl in iso_configs:
+        sc_iso = sipm_sc.model_copy(
+            update={
+                "isotope": iso,
+                "has_psf_modeling": False,
+                "gibbs_ringing_strength": 0.0,
+                "include_positron_range": True,
+                "medium_density_g_cm3": rho,
+            }
+        )
+        rcs = [
+            compute_sphere_recovery_coefficients(float(d), sc_iso, sipm_clean_rc)["rc_mean_true_voi"]
+            for d in nema_d
+        ]
+        ax2.plot(nema_d, rcs, color=col, marker=mk, ls=ls, lw=2.1, ms=5.8, label=lbl)
+
+    ax2.axhline(1.0, color="#666666", ls=":", lw=1.0)
+    ax2.set_title("B. Positron-Range Resolution Loss Across PET Radionuclides", loc="left")
+    ax2.set_xlabel("NEMA Sphere Inner Diameter (mm)")
+    ax2.set_ylabel("True-VOI Recovery Coefficient (RC)")
+    ax2.set_xticks(nema_d)
+    ax2.set_ylim(0.18, 1.06)
+    ax2.grid(True, alpha=0.25, ls=":")
+    ax2.legend(loc="lower right", fontsize=7.8)
+
+    fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
+    _add_footer(fig, "MIRD-26 177Lu Dosimetry (DOI:10.2967/jnumed.115.159012) & Positron Range (DOI:10.1186/s40658-016-0144-5)")
+    _save_fig(fig, out_dir, "fig7_theranostics_pve_dosimetry")
+
+
+def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
+    """Figure 8: Noise-constrained EARL2 Pareto frontier (COV <= 15%) + Necrotic-Core RBV PVC."""
+    fleet = build_reference_scanner_fleet()
+    tof_sc, tof_rc = fleet[1]
+    earl2 = get_corridor_spec("EARL2")
+
+    pareto_pts = compute_harmonization_pareto_frontier(
+        tof_sc,
+        tof_rc,
+        earl2,
+        fwhm_grid_mm=[float(x) for x in np.linspace(0.0, 9.0, 19)],
+        iteration_grid=[2, 4, 8],
+        max_allowed_cov_pct=15.0,
+    )
+
+    # Heterogeneous necrotic-core + viable-rim tumor phantom (28 mm outer, 12 mm necrotic core)
+    pmt_sc, pmt_rc = fleet[2]
+    sc_2mm = pmt_sc.model_copy(update={"voxel_size_mm": (2.0, 2.0, 2.0)})
+    rc_obs = pmt_rc.model_copy(update={"post_filter_fwhm_mm": 4.5})
+    true_tum, masks = build_necrotic_tumor_phantom(
+        shape=(31, 45, 45),
+        voxel_size_mm=(2.0, 2.0, 2.0),
+        outer_diameter_mm=28.0,
+        necrotic_core_diameter_mm=12.0,
+        rim_suv=9.0,
+        core_suv=1.5,
+        background_suv=2.0,
+    )
+    obs_tum = apply_forward_system_operator(true_tum, sc_2mm, rc_obs)
+    rbv_tum, gtm_tum = apply_rbv_pvc(obs_tum, masks, sc_2mm, rc_obs)
+
+    fig = plt.figure(figsize=(13.6, 5.4))
+    gs = fig.add_gridspec(1, 3, width_ratios=[1.25, 0.95, 1.15], wspace=0.30)
+
+    # Panel A: Noise-constrained EARL2 Pareto frontier (COV vs CNR)
+    ax1 = fig.add_subplot(gs[0, 0])
+    iter_styles = {
+        2: (OI["blue"], "o", "2 Iterations (32 updates)"),
+        4: (OI["green"], "s", "4 Iterations (64 updates)"),
+        8: (OI["vermilion"], "^", "8 Iterations (128 updates)"),
+    }
+    ax1.axvspan(15.0, 26.5, color=OI["vermilion"], alpha=0.10, label="Non-Compliant Noise (COV > 15%)")
+    ax1.axvline(15.0, color=OI["vermilion"], ls="--", lw=1.4)
+
+    for n_it, (col, mk, lbl) in iter_styles.items():
+        pts = [p for p in pareto_pts if p.iterations == n_it]
+        covs = [p.background_cov_pct for p in pts]
+        cnrs = [p.cnr_score for p in pts]
+        ax1.plot(covs, cnrs, color=col, lw=1.6, alpha=0.55)
+        feas = [p for p in pts if p.feasible_earl_and_noise]
+        infeas = [p for p in pts if not p.feasible_earl_and_noise]
+        if infeas:
+            ax1.scatter(
+                [p.background_cov_pct for p in infeas],
+                [p.cnr_score for p in infeas],
+                facecolors="white",
+                edgecolors=col,
+                marker=mk,
+                s=34,
+                lw=1.2,
+                zorder=4,
+            )
+        if feas:
+            ax1.scatter(
+                [p.background_cov_pct for p in feas],
+                [p.cnr_score for p in feas],
+                color=col,
+                edgecolors="#222222",
+                marker=mk,
+                s=46,
+                lw=0.8,
+                zorder=5,
+                label=f"{lbl} (Filled = EARL2 + COV OK)",
+            )
+
+    ax1.set_title("A. Noise-Constrained EARL2 Pareto Frontier", loc="left")
+    ax1.set_xlabel("Background Noise COV (%)")
+    ax1.set_ylabel("13 mm Sphere Contrast-to-Noise Ratio (CNR)")
+    ax1.set_xlim(2.5, 26.0)
+    ax1.set_ylim(10.0, 66.0)
+    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.legend(loc="upper right", fontsize=7.2)
+
+    # Panel B: Axial slice comparison (left half = Observed PET, right half = RBV PVC)
+    ax2 = fig.add_subplot(gs[0, 1])
+    mid_z = true_tum.shape[0] // 2
+    mid_x = true_tum.shape[2] // 2
+    split_img = np.concatenate([obs_tum[mid_z, :, :mid_x], rbv_tum[mid_z, :, mid_x:]], axis=1)
+    half_ext = true_tum.shape[1]
+    im2 = ax2.imshow(
+        split_img,
+        cmap="inferno",
+        vmin=0.0,
+        vmax=9.8,
+        origin="lower",
+        extent=[-half_ext, half_ext, -half_ext, half_ext],
+    )
+    ax2.axvline(0.0, color="white", ls="--", lw=1.4)
+    ax2.text(-22.0, 35.0, "Observed\nPET", color="white", ha="center", fontsize=8.3, fontweight="bold")
+    ax2.text(22.0, 35.0, "RBV PVC\nRecovered", color="#56B4E9", ha="center", fontsize=8.3, fontweight="bold")
+    _add_scalebar(ax2, length_mm=20.0, x_right=39.0, y_bottom=-38.0)
+    ax2.set_title("B. Necrotic-Core Tumor (Split View)", loc="left")
+    ax2.set_xlabel("x (mm)")
+    ax2.set_ylabel("y (mm)")
+    cbar2 = fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.03)
+    cbar2.set_label("Activity (SUV)", fontsize=8.4)
+
+    # Panel C: 1D transverse profile across necrotic core & viable rim
+    ax3 = fig.add_subplot(gs[0, 2])
+    mid_y = true_tum.shape[1] // 2
+    x_mm = (np.arange(true_tum.shape[2]) - (true_tum.shape[2] - 1) / 2.0) * 2.0
+    ax3.plot(x_mm, true_tum[mid_z, mid_y, :], color=OI["black"], ls="--", lw=1.8, label="Ground Truth (Rim=9.0, Core=1.5)")
+    ax3.plot(x_mm, obs_tum[mid_z, mid_y, :], color=OI["blue"], lw=2.2, label="Observed PET (Rim Loss + Core Spill-In)")
+    ax3.plot(x_mm, rbv_tum[mid_z, mid_y, :], color=OI["green"], lw=2.2, label=f"RBV PVC (GTM res={gtm_tum.reprojection_residual_inf:.1e})")
+    ax3.annotate(
+        "Necrotic core\nspill-in removed",
+        xy=(0.0, rbv_tum[mid_z, mid_y, mid_x]),
+        xytext=(-14.0, 0.35),
+        fontsize=7.9,
+        fontweight="bold",
+        color=OI["green"],
+        arrowprops={"arrowstyle": "->", "color": OI["green"], "lw": 1.2},
+    )
+    ax3.set_title("C. Viable-Rim & Necrotic-Core Line Profile", loc="left")
+    ax3.set_xlabel("Transverse Position x (mm)")
+    ax3.set_ylabel("Activity Concentration (SUV)")
+    ax3.set_xlim(-34.0, 34.0)
+    ax3.set_ylim(0.0, 11.4)
+    ax3.grid(True, alpha=0.25, ls=":")
+    ax3.legend(loc="upper center", fontsize=7.4)
+
+    fig.subplots_adjust(bottom=0.14, top=0.90, left=0.05, right=0.97)
+    _add_footer(fig, "EANM/EARL COV <= 15% Pareto Frontier & Thomas et al. (2011) RBV PVC (DOI:10.1007/s00259-011-1745-9)")
+    _save_fig(fig, out_dir, "fig8_earl_noise_pareto_and_rbv")
+
+
 def main() -> None:
     out_dir = Path("figures")
     print("Generating Figure 1 (NEMA PSF/Gibbs formation & GTM)...")
@@ -754,7 +1012,11 @@ def main() -> None:
     generate_fig5_longitudinal_attribution(out_dir)
     print("Generating Figure 6 (Saltelli-Jansen Sobol' sensitivity)...")
     generate_fig6_sobol_sensitivity(out_dir)
-    print(f"All 6 figures (PNG + PDF) saved in {out_dir.resolve()}")
+    print("Generating Figure 7 (MIRD-26 theranostic dose & positron range)...")
+    generate_fig7_theranostics_and_positron_range(out_dir)
+    print("Generating Figure 8 (Noise-constrained EARL2 Pareto & RBV PVC)...")
+    generate_fig8_pareto_and_rbv(out_dir)
+    print(f"All 8 figures (PNG + PDF) saved in {out_dir.resolve()}")
 
 
 if __name__ == "__main__":

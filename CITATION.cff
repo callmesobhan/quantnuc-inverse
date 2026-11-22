@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use quantnuc-inverse in academic research, please cite it using the metadata below. Research Software — NOT A MEDICAL DEVICE."
 title: "quantnuc-inverse: Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine"
-version: 0.1.0
+version: 0.2.0
 date-released: "2026-11-22"
 license: Apache-2.0
 type: software

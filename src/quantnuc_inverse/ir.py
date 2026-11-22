@@ -21,6 +21,7 @@ class AbstentionCode(StrEnum):
     SUB_NYQUIST_LESION_UNRECOVERABLE = "SUB_NYQUIST_LESION_UNRECOVERABLE"
     EARL_CORRIDOR_INFEASIBLE = "EARL_CORRIDOR_INFEASIBLE"
     MISSING_DECAY_CORRECTION = "MISSING_DECAY_CORRECTION"
+    INSUFFICIENT_TIMEPOINTS_FOR_TIAC = "INSUFFICIENT_TIMEPOINTS_FOR_TIAC"
 
 
 class AbstentionError(ValueError):
@@ -57,7 +58,7 @@ class ProvenanceRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     record_id: str = Field(..., min_length=4)
-    engine_version: str = Field(default="0.1.0")
+    engine_version: str = Field(default="0.2.0")
     timestamp_utc: str
     operation: str
     input_sha256: str = Field(..., min_length=64, max_length=64)
@@ -68,7 +69,7 @@ class ProvenanceRecord(BaseModel):
 
 
 ScannerModality = Literal["PET_SIPM", "PET_PMT", "PET_TOF_PSF", "SPECT_CZT", "SPECT_NAI"]
-IsotopeName = Literal["F-18", "Ga-68", "Zr-89", "Lu-177", "Tc-99m", "I-131"]
+IsotopeName = Literal["F-18", "Ga-68", "Zr-89", "I-124", "Lu-177", "Tc-99m", "I-131", "Y-90"]
 
 
 class ScannerSpec(BaseModel):
@@ -106,6 +107,16 @@ class ScannerSpec(BaseModel):
     )
     sensitivity_cps_per_kbq: float = Field(default=12.0, gt=0.01)
     isotope: IsotopeName = Field(default="F-18")
+    include_positron_range: bool = Field(
+        default=False,
+        description="Include isotope-specific positron-range blur scaled by medium density (Conti & Eriksson 2016).",
+    )
+    medium_density_g_cm3: float = Field(
+        default=1.0,
+        gt=0.05,
+        le=3.0,
+        description="Local tissue density in g/cm^3 (1.0 water/soft tissue, ~0.27 inflated lung).",
+    )
 
     @model_validator(mode="after")
     def _validate_voxel_spacing(self) -> ScannerSpec:
@@ -256,4 +267,69 @@ class HarmonizationFilterResult(BaseModel):
     max_corridor_violation_before: float
     max_corridor_violation_after: float
     sharpness_retention_ratio: float
+    background_cov_pct: float = Field(default=0.0, ge=0.0)
+    max_allowed_cov_pct: float = Field(default=15.0, gt=0.0)
+    noise_compliant: bool = Field(default=True)
+    cnr_score: float = Field(default=0.0, ge=0.0)
+    provenance: ProvenanceRecord
+
+
+class ParetoHarmonizationPoint(BaseModel):
+    """Single point on the EARL RC-compliance vs. background-noise COV & CNR Pareto frontier."""
+
+    model_config = ConfigDict(frozen=True)
+
+    post_filter_fwhm_mm: float
+    iterations: int
+    max_corridor_violation: float
+    background_cov_pct: float
+    cnr_score: float
+    sharpness_retention_ratio: float
+    feasible_earl_and_noise: bool
+
+
+class VolumetricCTACReport(BaseModel):
+    """3D bilinear HU-to-mu(E) ray-traced CT-AC respiratory mismatch report."""
+
+    model_config = ConfigDict(frozen=True)
+
+    shift_mm: tuple[float, float, float]
+    photon_energy_kev: float
+    roi_mean_bias_factor: float
+    roi_mean_percent_error: float
+    max_abs_percent_error: float
+    artifact_polarity: Literal["FALSE_COLD", "FALSE_HOT", "NEGLIGIBLE"]
+    exceeds_abstention_threshold: bool
+    provenance: ProvenanceRecord
+
+
+class TimeActivityPoint(BaseModel):
+    """Single quantitative post-injection time-activity sample for theranostic TIAC fitting."""
+
+    model_config = ConfigDict(frozen=True)
+
+    time_hours: float = Field(..., ge=0.0, le=2000.0)
+    observed_activity_mbq_ml: float = Field(..., ge=0.0)
+    background_activity_mbq_ml: float = Field(default=0.0, ge=0.0)
+
+
+class TheranosticDoseResult(BaseModel):
+    """PVE-propagated MIRD-23/26 theranostic tumor absorbed dose (Gy) with 90% uncertainty interval."""
+
+    model_config = ConfigDict(frozen=True)
+
+    lesion_id: str
+    isotope: Literal["Lu-177", "I-131", "Y-90"]
+    lesion_diameter_mm: float
+    lesion_mass_g: float
+    fit_model: Literal["MONO_EXPONENTIAL", "BI_EXPONENTIAL"]
+    effective_half_life_h: float
+    s_factor_mgy_per_mbq_s: float
+    uncorrected_tiac_mbq_h_per_ml: float
+    pvc_tiac_mbq_h_per_ml: float
+    uncorrected_dose_gy: float
+    pvc_dose_nominal_gy: float
+    pvc_dose_p05_gy: float
+    pvc_dose_p95_gy: float
+    pve_dose_underestimation_pct: float
     provenance: ProvenanceRecord

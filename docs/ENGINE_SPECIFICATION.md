@@ -65,7 +65,16 @@ Uses scrambled QMC Sobol' sequences ($N = 2^m$ base samples, $N(k+2)$ evaluation
 $$S_{1,i} = 1 - \frac{\frac{1}{2N}\sum_{j=1}^N \left(y_{B,j} - y_{A_B^{(i)},j}\right)^2}{\text{Var}(Y)}, \qquad S_{T,i} = \frac{\frac{1}{2N}\sum_{j=1}^N \left(y_{A,j} - y_{A_B^{(i)},j}\right)^2}{\text{Var}(Y)}$$
 with bootstrap 95% confidence intervals across PSF FWHM, ROI delineation error ($\pm 1$ voxel), Gibbs ringing, and CT-AC respiratory phase shift.
 
-## 7. Frontier Agent Harness & MCP Server (`harness/`)
+## 7. Frontier Agent Harness, CLI & MCP Server (`harness/`, `cli.py`)
 
 - `QuantitativeImagingForensicsAgent`: Performs Shapley-exact logarithmic attribution separating observed longitudinal $\Delta\text{SUV}$ into PSF-Gibbs, PVE/resolution, CT-AC mismatch, and true biological change; runs `CriticVerifierAudit`; exports Markdown + SHA-256 JSON dossiers.
-- `mcp_server.py`: Line-delimited JSON-RPC 2.0 stdio server exposing 6 provenance-gated tools (`quantnuc_forward_nema_rc`, `quantnuc_invert_pve_activity`, `quantnuc_synthesize_earl_filter`, `quantnuc_audit_ct_ac_mismatch`, `quantnuc_diagnose_suv_shift`, `quantnuc_run_sobol_sensitivity`).
+- `mcp_server.py`: Line-delimited JSON-RPC 2.0 stdio server exposing 9 provenance-gated tools (`quantnuc_forward_nema_rc`, `quantnuc_invert_pve_activity`, `quantnuc_synthesize_earl_filter`, `quantnuc_audit_ct_ac_mismatch`, `quantnuc_diagnose_suv_shift`, `quantnuc_run_sobol_sensitivity`, `quantnuc_compute_theranostic_dose`, `quantnuc_audit_3d_ct_ac_volume`, `quantnuc_generate_physics_dossier`).
+- `cli.py`: Ergonomic `quantnuc` CLI exposing `harmonize`, `pvc`, `audit-ac`, `dose`, and `dossier`.
+
+## 8. v0.2.0 Physics & Theranostics Extensions
+
+- **Isotope Positron-Range Blur**: $\text{FWHM}_{\text{pos}}(\text{isotope}, \rho) = \text{FWHM}_{\text{water}} / \max(\rho, 0.15)$ added in quadrature to intrinsic detector PSF for `F-18` (0.54 mm), `Zr-89` (1.27 mm), `Ga-68` (2.90 mm), and `I-124` (3.40 mm) (Conti & Eriksson 2016).
+- **3D Bilinear HU-to-$\mu(E)$ Ray-Traced CT-AC**: Piecewise Carney et al. (2006) 120 kVp transform mapped to 511/364/208/140 keV + paired 3D CT-to-PET affine resampling (`resample_ct_to_pet_grid`) and multi-slice `ImagePositionPatient`-sorted DICOM series ingestion.
+- **Region-Based Voxel-Wise (RBV) PVC**: Thomas et al. (2011) GTM + Yang ratio correction $I_{\text{RBV}}(\mathbf{x}) = I_{\text{obs}}(\mathbf{x}) \cdot S(\mathbf{x}) / (\mathcal{H}S)(\mathbf{x})$ for heterogeneous necrotic-core + viable-rim lesions.
+- **Noise-Constrained EARL2 Pareto Frontier**: Jointly evaluates RC corridor compliance, EANM background noise $\text{COV}_{\text{bg}} \le 15\%$, and 13 mm sphere CNR across `(iterations, FWHM)`.
+- **MIRD-23/26 Theranostic Absorbed-Dose Engine (`theranostics_dosimetry.py`)**: Multi-timepoint mono/bi-exponential TIAC fitting with `INSUFFICIENT_TIMEPOINTS_FOR_TIAC` abstention gate, finite-sphere beta/gamma MIRD S-factors (`Lu-177`, `I-131`, `Y-90`), and exact PVE `[p05, nominal, p95]` propagation into tumor absorbed dose (Gy).

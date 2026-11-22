@@ -158,7 +158,7 @@ def test_mcp_server_jsonrpc_protocol_all_tools_and_abstention() -> None:
     list_resp = handle_jsonrpc_request({"jsonrpc": "2.0", "id": 3, "method": "tools/list"})
     tools = list_resp["result"]["tools"]
     names = {t["name"] for t in tools}
-    assert len(tools) == 6
+    assert len(tools) == 9
     assert names == {
         "quantnuc_forward_nema_rc",
         "quantnuc_invert_pve_activity",
@@ -166,6 +166,9 @@ def test_mcp_server_jsonrpc_protocol_all_tools_and_abstention() -> None:
         "quantnuc_audit_ct_ac_mismatch",
         "quantnuc_diagnose_suv_shift",
         "quantnuc_run_sobol_sensitivity",
+        "quantnuc_compute_theranostic_dose",
+        "quantnuc_audit_3d_ct_ac_volume",
+        "quantnuc_generate_physics_dossier",
     }
 
     fleet = build_reference_scanner_fleet()

@@ -258,3 +258,22 @@ def assert_earl_corridor_feasible(
                 "max_violation": max_violation,
             },
         )
+
+
+def assert_sufficient_timepoints_for_tiac(
+    times_hours: list[float],
+    min_points: int = 2,
+) -> None:
+    """Abstain when too few or non-monotonic post-injection timepoints are provided for TIAC fitting."""
+    if len(times_hours) < min_points:
+        raise AbstentionError(
+            AbstentionCode.INSUFFICIENT_TIMEPOINTS_FOR_TIAC,
+            f"Need at least {min_points} distinct post-injection timepoints for TIAC integration; got {len(times_hours)}.",
+            details={"n_timepoints": len(times_hours), "min_points": min_points},
+        )
+    if any(times_hours[i] >= times_hours[i + 1] for i in range(len(times_hours) - 1)):
+        raise AbstentionError(
+            AbstentionCode.INSUFFICIENT_TIMEPOINTS_FOR_TIAC,
+            "Time-activity curve timestamps must be strictly increasing for TIAC dosimetry fitting.",
+            details={"times_hours": times_hours},
+        )

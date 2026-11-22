@@ -190,6 +190,71 @@ def apply_muller_gartner_pvc(
     return corrected
 
 
+def apply_rbv_pvc(
+    observed_volume: np.ndarray,
+    region_masks: dict[str, np.ndarray],
+    scanner: ScannerSpec,
+    recon: ReconConfig,
+    *,
+    radial_offset_mm: float = 0.0,
+    eps: float = 1e-6,
+) -> tuple[np.ndarray, GTMInversionOutput]:
+    """Apply Thomas et al. (2011) Region-Based Voxel-wise (RBV) PVC for heterogeneous & non-spherical lesions.
+
+    Reference: Thomas et al. (2011) *Eur J Nucl Med Mol Imaging* 38:1104-1119, DOI:10.1007/s00259-011-1745-9.
+
+    Algorithm:
+    1. Solve multi-region Rousset GTM for regional means T_hat = W^-1 t_obs.
+    2. Build piecewise-constant anatomical template S(x) = sum_i T_hat_i R_i(x).
+    3. Compute voxel-wise Yang-RBV ratio correction: I_RBV(x) = I_obs(x) * S(x) / (H * S)(x).
+    """
+    obs = np.asarray(observed_volume, dtype=np.float64)
+    gtm_out = solve_gtm_multi_region(
+        obs,
+        region_masks,
+        scanner,
+        recon,
+        radial_offset_mm=radial_offset_mm,
+        regularization_lambda=0.0,
+    )
+
+    synthetic = np.zeros_like(obs, dtype=np.float64)
+    for name, mean_val in zip(gtm_out.region_names, gtm_out.recovered_means, strict=True):
+        synthetic += np.asarray(region_masks[name], dtype=np.float64) * max(0.0, float(mean_val))
+
+    blurred_syn = apply_forward_system_operator(
+        synthetic,
+        scanner,
+        recon,
+        radial_offset_mm=radial_offset_mm,
+        boundary_mode="reflect",
+    )
+    denom = np.where(np.abs(blurred_syn) >= eps, blurred_syn, np.nan)
+    ratio = np.where(np.isfinite(denom), synthetic / denom, 0.0)
+    rbv_vol = np.maximum(0.0, obs * ratio)
+    return rbv_vol, gtm_out
+
+
+def build_necrotic_tumor_phantom(
+    shape: tuple[int, int, int] = (31, 45, 45),
+    voxel_size_mm: tuple[float, float, float] = (2.0, 2.0, 2.0),
+    *,
+    outer_diameter_mm: float = 28.0,
+    necrotic_core_diameter_mm: float = 12.0,
+    rim_suv: float = 9.0,
+    core_suv: float = 1.5,
+    background_suv: float = 2.0,
+) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Construct a 3D heterogeneous necrotic-core + viable-rim tumor phantom and exact region masks."""
+    outer = build_antialiased_sphere_mask(shape, voxel_size_mm, (0.0, 0.0, 0.0), outer_diameter_mm)
+    core = build_antialiased_sphere_mask(shape, voxel_size_mm, (0.0, 0.0, 0.0), necrotic_core_diameter_mm)
+    rim = np.clip(outer - core, 0.0, 1.0)
+    bg = np.clip(1.0 - outer, 0.0, 1.0)
+
+    true_vol = rim_suv * rim + core_suv * core + background_suv * bg
+    return true_vol, {"viable_rim": rim, "necrotic_core": core, "background": bg}
+
+
 def _compute_two_region_sphere_gtm(
     diameter_mm: float,
     scanner: ScannerSpec,

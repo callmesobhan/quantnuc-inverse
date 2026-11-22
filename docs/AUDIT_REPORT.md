@@ -1,24 +1,25 @@
-# Independent Verification & Audit Report — `quantnuc-inverse` v0.1.0
+# Independent Verification & Audit Report — `quantnuc-inverse` v0.2.0
 
 > **Notice:** Research Software — NOT A MEDICAL DEVICE.
 
 ## 1. Executive Audit Summary
 
-An independent mathematical, numerical, visual, and software-engineering audit was conducted across the complete `quantnuc-inverse` repository (`src/quantnuc_inverse/`, `tests/`, `scripts/`, `figures/`, and `data/sample_nema_dro/`).
+An independent mathematical, numerical, visual, and software-engineering audit was conducted across the complete `quantnuc-inverse` v0.2.0 repository (`src/quantnuc_inverse/`, `tests/`, `scripts/`, `figures/`, and `data/sample_nema_dro/`).
 
 | Audit Dimension | Requirement | Verified Result | Status |
 |---|---|---|:---:|
-| Unit & Integration Test Suite | `>= 25` tests, `0` warnings | **30 / 30 passed**, `0` warnings (`filterwarnings = ["error"]`) | **PASS** |
-| Branch & Statement Coverage | `>= 75%` total coverage | **94.61%** total (core physics modules 88.8%–100.0%) | **PASS** |
+| Unit & Integration Test Suite | `>= 25` tests, `0` warnings | **38 / 38 passed**, `0` warnings (`filterwarnings = ["error"]`) | **PASS** |
+| Branch & Statement Coverage | `>= 75%` total coverage | **95.38%** total (every module 90.2%–100.0%: `ir.py` 100%, `mcp_server.py` 98.7%, `pve_inverse_solver.py` 97.9%) | **PASS** |
 | Static Analysis (`ruff check`) | `0` lint errors | **0 errors** across `src/`, `tests/`, `scripts/` | **PASS** |
-| Rousset GTM Re-Projection Invariant | Residual `<= 1e-6` | **`4.4e-16`** (6-sphere 3D NEMA DRO) / **`0.00e+00`** (2-region) | **PASS** |
+| Rousset GTM & RBV Re-Projection Invariant | Residual `<= 1e-6` | **`4.4e-16`** (6-sphere NEMA) / **`8.9e-16`** (necrotic-core RBV) | **PASS** |
 | Total Activity Conservation | Closed partition conservative | **`< 1e-10`** (impulse & DoG Gibbs operator) | **PASS** |
-| 4-Scanner Fleet Harmonization | EARL2 & MIRD-23 convergence | **4 / 4 feasible**, max post-filter violation **`0.00000`** | **PASS** |
-| Hard Abstention Safety Gates | All 5 codes verified | All 5 (`UNCALIBRATED_SUV_METADATA`, `MISSING_DECAY_CORRECTION`, `SEVERE_CT_AC_MISMATCH`, `SUB_NYQUIST_LESION_UNRECOVERABLE`, `EARL_CORRIDOR_INFEASIBLE`) tested & triggered | **PASS** |
-| DICOM PET/SPECT/CT Round-Trip | Exact SUVbw & SUVlbm recovery | Matches analytical decay-corrected SUVbw/SUVlbm within `< 0.05%` | **PASS** |
+| 4-Scanner Fleet Harmonization + Noise COV | EARL2 & MIRD-23 + `COV <= 15%` | **4 / 4 feasible**, max post-filter violation **`0.00000`**, `noise_compliant=True` | **PASS** |
+| Hard Abstention Safety Gates | All 6 codes verified | All 6 (`UNCALIBRATED_SUV_METADATA`, `MISSING_DECAY_CORRECTION`, `SEVERE_CT_AC_MISMATCH`, `SUB_NYQUIST_LESION_UNRECOVERABLE`, `EARL_CORRIDOR_INFEASIBLE`, `INSUFFICIENT_TIMEPOINTS_FOR_TIAC`) tested | **PASS** |
+| 3D Multi-Slice DICOM & CT Resampling | `ImagePositionPatient` sorting & SUV | Lossless-precision 3D series round-trip + bilinear HU-to-$\mu(E)$ 3D CT-AC verified | **PASS** |
+| MIRD-26 Theranostic Dose Propagation | Lu-177 / I-131 / Y-90 PVE-to-Gy | 12 mm Lu-177 tumor `-50%` uncorrected PVE dose loss recovered with 90% CI | **PASS** |
 | SHA-256 Provenance Ledger | Deterministic tamper-evident chain | Verified intact + tampering unit-tested to return `False` | **PASS** |
-| MCP JSON-RPC 2.0 Server | All 6 tools + structured errors | All 6 tools + abstention payload + `-32601` / `-32602` verified | **PASS** |
-| Publication Figure Visual Audit | Inspect all 6 PNGs via `read_file` | All 6 PNGs inspected; 4 visual/physics defects detected and resolved | **PASS** |
+| MCP JSON-RPC 2.0 Server & CLI | All 9 MCP tools + 5 CLI commands | All 9 tools + `main()` stdio loop + all 5 `quantnuc` CLI subcommands verified | **PASS** |
+| Publication Figure Visual Audit | Inspect all 8 PNGs via `read_file` | All 8 PNGs inspected; all layout/physics defects resolved | **PASS** |
 
 ## 2. Quantitative Benchmark Results
 

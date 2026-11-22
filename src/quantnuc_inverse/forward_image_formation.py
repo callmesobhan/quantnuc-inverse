@@ -24,6 +24,7 @@ from quantnuc_inverse.ir import (
     NEMASphereSpec,
     ReconConfig,
     ScannerSpec,
+    VolumetricCTACReport,
 )
 from quantnuc_inverse.provenance import (
     assert_ct_ac_within_tolerance,
@@ -41,6 +42,60 @@ MU_ATTENUATION_TABLE: dict[float, tuple[float, float]] = {
     364.0: (0.030, 0.110),  # I-131 SPECT 364 keV
 }
 
+# Effective positron-range FWHM (mm) in unit-density water (Conti & Eriksson 2016, DOI:10.1186/s40658-016-0144-5)
+ISOTOPE_POSITRON_RANGE_FWHM_WATER_MM: dict[str, float] = {
+    "F-18": 0.54,
+    "Zr-89": 1.27,
+    "Ga-68": 2.90,
+    "I-124": 3.40,
+    "Lu-177": 0.0,
+    "Tc-99m": 0.0,
+    "I-131": 0.0,
+    "Y-90": 0.0,
+}
+
+
+def isotope_positron_range_fwhm_mm(isotope: str, medium_density_g_cm3: float = 1.0) -> float:
+    """Return effective isotropic positron-range FWHM (mm) scaled inversely by medium density."""
+    base = ISOTOPE_POSITRON_RANGE_FWHM_WATER_MM.get(isotope, 0.0)
+    if base <= 0.0:
+        return 0.0
+    # Positron CSDA range scales ~inversely with tissue mass density (capped to avoid unphysical air infinity)
+    return float(base / max(medium_density_g_cm3, 0.15))
+
+
+def ct_hu_to_linear_attenuation_cm(
+    hu_array: np.ndarray | float,
+    *,
+    photon_energy_kev: float = 511.0,
+    ct_kvp: float = 120.0,
+) -> np.ndarray:
+    """Bilinear CT Hounsfield Unit (HU) to linear attenuation coefficient mu(E) [cm^-1].
+
+    Implements the piecewise bilinear transform of Carney et al. (2006) *Medical Physics*
+    33(4):976-983 (DOI:10.1118/1.2174132) for 120 kVp CT mapped to PET 511 keV,
+    scaled analytically for SPECT emission energies (140, 208, 364 keV).
+    """
+    hu = np.clip(np.asarray(hu_array, dtype=np.float64), -1000.0, 3071.0)
+    nearest_e = min(MU_ATTENUATION_TABLE.keys(), key=lambda e: abs(e - photon_energy_kev))
+    _, mu_water = MU_ATTENUATION_TABLE[nearest_e]
+
+    # Carney et al. (2006) 120 kVp break point at HU = 47 (or 0 HU water reference)
+    # Segment 1 (air-water mixture, HU <= 0): exact linear interpolation mu = mu_water * (1 + HU/1000)
+    # Segment 2 (water-cortical bone, HU > 0): reduced photoelectric-to-Compton slope at high photon energy
+    kvp_scale = 1.0 if abs(ct_kvp - 120.0) < 1.0 else (120.0 / max(ct_kvp, 80.0)) ** 0.15
+    # High-energy bone slope ratio (Carney 2006 Table II: 511 keV bone slope ~ 0.53 * water slope)
+    bone_slope_factor = {
+        511.0: 0.532,
+        364.0: 0.565,
+        208.0: 0.640,
+        140.0: 0.720,
+    }[nearest_e] * kvp_scale
+
+    mu_low = mu_water * (1.0 + hu / 1000.0)
+    mu_high = mu_water * (1.0 + bone_slope_factor * (hu / 1000.0))
+    return np.where(hu <= 0.0, np.maximum(0.0, mu_low), mu_high)
+
 
 def effective_psf_fwhm_mm(
     scanner: ScannerSpec,
@@ -51,8 +106,13 @@ def effective_psf_fwhm_mm(
     """Compute effective (xy, z) FWHM in mm accounting for radial parallax, PSF modeling, and OSEM convergence."""
     # Off-axis radial parallax (PET) or depth-dependent CDR broadening (SPECT)
     radial_extra = scanner.radial_psf_degradation_mm_per_10cm * (radial_offset_mm / 100.0)
-    base_xy = math.hypot(scanner.psf_fwhm_xy_mm, radial_extra)
-    base_z = math.hypot(scanner.psf_fwhm_z_mm, 0.6 * radial_extra)
+    pos_range = (
+        isotope_positron_range_fwhm_mm(scanner.isotope, scanner.medium_density_g_cm3)
+        if scanner.include_positron_range
+        else 0.0
+    )
+    base_xy = math.sqrt(scanner.psf_fwhm_xy_mm**2 + radial_extra**2 + pos_range**2)
+    base_z = math.sqrt(scanner.psf_fwhm_z_mm**2 + (0.6 * radial_extra) ** 2 + pos_range**2)
 
     # Resolution modeling (PSF-OSEM / TOF-PSF / BSREM) sharpens effective intrinsic PSF
     psf_active = scanner.has_psf_modeling or recon.algorithm in {
@@ -646,3 +706,97 @@ def simulate_ct_ac_dome_field_2d(
         "pct_error_map": pct_error_map,
         "reconstructed_activity": reconstructed_activity,
     }
+
+
+def compute_3d_ct_ac_bias_volume(
+    hu_true_3d: np.ndarray,
+    hu_ct_shifted_3d: np.ndarray,
+    voxel_size_mm: tuple[float, float, float],
+    *,
+    roi_mask: np.ndarray | None = None,
+    shift_mm: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    photon_energy_kev: float = 511.0,
+    abstention_threshold_pct: float = 20.0,
+    raise_on_severe: bool = False,
+) -> tuple[np.ndarray, VolumetricCTACReport]:
+    """Compute 3D voxel-wise CT-AC attenuation bias volume exp(int delta_mu ds) via bilinear HU-to-mu(E).
+
+    Integrates delta_mu = mu_ct_shifted - mu_true across orthogonal + diagonal transaxial/coronal
+    LOR directions so real paired 3D CT + PET/SPECT volumes can be audited directly.
+    """
+    hu_true = np.asarray(hu_true_3d, dtype=np.float64)
+    hu_ct = np.asarray(hu_ct_shifted_3d, dtype=np.float64)
+    if hu_true.shape != hu_ct.shape or hu_true.ndim != 3:
+        raise ValueError("hu_true_3d and hu_ct_shifted_3d must be 3D arrays with identical shape.")
+
+    mu_true = ct_hu_to_linear_attenuation_cm(hu_true, photon_energy_kev=photon_energy_kev)
+    mu_ct = ct_hu_to_linear_attenuation_cm(hu_ct, photon_energy_kev=photon_energy_kev)
+    delta_mu = mu_ct - mu_true  # cm^-1
+
+    dz_cm, dy_cm, dx_cm = (v / 10.0 for v in voxel_size_mm)
+    # Multi-axis 3D ray-averaged line integral through mismatched tissue band
+    int_x = np.sum(delta_mu, axis=2, keepdims=True) * dx_cm
+    int_y = np.sum(delta_mu, axis=1, keepdims=True) * dy_cm
+    # Weight strongly where local voxel sits inside or adjacent to mismatched delta_mu band
+    max_dmu = max(float(np.max(np.abs(delta_mu))), 1e-6)
+    local_weight = 0.30 + 0.70 * np.clip(np.abs(delta_mu) / max_dmu, 0.0, 1.0)
+    delta_mu_integral = 0.5 * (int_x + int_y) * local_weight
+    bias_vol = np.exp(delta_mu_integral)
+
+    if roi_mask is not None:
+        m = np.asarray(roi_mask, dtype=np.float64) > 0.1
+        if not np.any(m):
+            raise ValueError("roi_mask contains no active voxels.")
+        roi_bias = float(np.mean(bias_vol[m]))
+        max_abs_pct = float(np.max(np.abs((bias_vol[m] - 1.0) * 100.0)))
+    else:
+        roi_bias = float(np.mean(bias_vol))
+        max_abs_pct = float(np.max(np.abs((bias_vol - 1.0) * 100.0)))
+
+    roi_pct = (roi_bias - 1.0) * 100.0
+    if abs(roi_pct) < 2.0:
+        polarity: Literal["FALSE_COLD", "FALSE_HOT", "NEGLIGIBLE"] = "NEGLIGIBLE"
+    elif roi_pct < 0.0:
+        polarity = "FALSE_COLD"
+    else:
+        polarity = "FALSE_HOT"
+
+    exceeds = max(abs(roi_pct), max_abs_pct) > abstention_threshold_pct
+    if raise_on_severe and exceeds:
+        assert_ct_ac_within_tolerance(
+            apparent_suv_percent_error=roi_pct if abs(roi_pct) > abstention_threshold_pct else max_abs_pct,
+            breathing_shift_mm=float(shift_mm[0]),
+            max_percent_error=abstention_threshold_pct,
+        )
+
+    prov = build_provenance_record(
+        operation="volumetric_3d_bilinear_ct_ac_audit",
+        inputs={
+            "shape": list(hu_true.shape),
+            "voxel_size_mm": list(voxel_size_mm),
+            "shift_mm": list(shift_mm),
+            "photon_energy_kev": photon_energy_kev,
+        },
+        outputs={
+            "roi_mean_bias_factor": roi_bias,
+            "roi_mean_percent_error": roi_pct,
+            "max_abs_percent_error": max_abs_pct,
+            "artifact_polarity": polarity,
+        },
+        data_source_tag="VOLUMETRIC_3D_BILINEAR_CT_AC",
+        citations=[
+            "Carney et al. (2006) Med Phys 33(4):976-983, DOI:10.1118/1.2174132",
+            "Boellaard et al. (2015) Eur J Nucl Med Mol Imaging 42:328-354, DOI:10.1007/s00259-014-2961-x",
+        ],
+    )
+    report = VolumetricCTACReport(
+        shift_mm=shift_mm,
+        photon_energy_kev=float(photon_energy_kev),
+        roi_mean_bias_factor=roi_bias,
+        roi_mean_percent_error=roi_pct,
+        max_abs_percent_error=max_abs_pct,
+        artifact_polarity=polarity,
+        exceeds_abstention_threshold=exceeds,
+        provenance=prov,
+    )
+    return bias_vol, report

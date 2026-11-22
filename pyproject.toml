@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantnuc-inverse"
-version = "0.1.0"
+version = "0.2.0"
 description = "Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine with Frontier Agent Harness & MCP Server"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -49,6 +49,7 @@ dev = [
 ]
 
 [project.scripts]
+quantnuc = "quantnuc_inverse.cli:main"
 quantnuc-mcp = "quantnuc_inverse.harness.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]

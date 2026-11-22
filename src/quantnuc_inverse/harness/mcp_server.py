@@ -1,4 +1,4 @@
-"""JSON-RPC 2.0 stdio MCP Server exposing 6 provenance-gated nuclear medicine physics tools.
+"""JSON-RPC 2.0 stdio MCP Server exposing 9 provenance-gated nuclear medicine physics tools.
 
 Tools exposed:
 1. `quantnuc_forward_nema_rc`
@@ -7,6 +7,9 @@ Tools exposed:
 4. `quantnuc_audit_ct_ac_mismatch`
 5. `quantnuc_diagnose_suv_shift`
 6. `quantnuc_run_sobol_sensitivity`
+7. `quantnuc_compute_theranostic_dose`
+8. `quantnuc_audit_3d_ct_ac_volume`
+9. `quantnuc_generate_physics_dossier`
 
 Research Software — NOT A MEDICAL DEVICE.
 """
@@ -17,12 +20,15 @@ import json
 import sys
 from typing import Any
 
+import numpy as np
+
 from quantnuc_inverse import __version__
 from quantnuc_inverse.earl_harmonizer import (
     get_corridor_spec,
     synthesize_harmonization_filter,
 )
 from quantnuc_inverse.forward_image_formation import (
+    compute_3d_ct_ac_bias_volume,
     compute_ct_ac_mismatch_report,
     simulate_nema_rc_curve,
 )
@@ -33,10 +39,12 @@ from quantnuc_inverse.ir import (
     LesionROI,
     ReconConfig,
     ScannerSpec,
+    TimeActivityPoint,
 )
 from quantnuc_inverse.provenance import build_provenance_record
 from quantnuc_inverse.pve_inverse_solver import invert_lesion_activity
 from quantnuc_inverse.sobol_sensitivity import run_sobol_sensitivity
+from quantnuc_inverse.theranostics_dosimetry import compute_pve_propagated_theranostic_dose
 
 PROTOCOL_VERSION = "2024-11-05"
 
@@ -134,6 +142,45 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["lesion_diameter_mm"],
         },
     },
+    {
+        "name": "quantnuc_compute_theranostic_dose",
+        "description": "Propagate Rousset GTM partial-volume recovery into MIRD-23/26 multi-timepoint tumor absorbed dose (Gy) with 90% uncertainty interval.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "lesion_id": {"type": "string", "default": "THERA_L1"},
+                "lesion_diameter_mm": {"type": "number"},
+                "timepoints": {"type": "array", "items": {"type": "object"}},
+                "scanner": {"type": "object"},
+                "recon": {"type": "object"},
+                "isotope": {"type": "string", "enum": ["Lu-177", "I-131", "Y-90"], "default": "Lu-177"},
+            },
+            "required": ["lesion_diameter_mm", "timepoints", "scanner", "recon"],
+        },
+    },
+    {
+        "name": "quantnuc_audit_3d_ct_ac_volume",
+        "description": "Compute 3D bilinear HU-to-mu(E) ray-traced CT-AC respiratory mismatch bias across a lung-liver dome volume.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "breathing_shift_mm": {"type": "number"},
+                "photon_energy_kev": {"type": "number", "default": 511.0},
+                "raise_on_severe": {"type": "boolean", "default": False},
+            },
+            "required": ["breathing_shift_mm"],
+        },
+    },
+    {
+        "name": "quantnuc_generate_physics_dossier",
+        "description": "Run the end-to-end Frontier Agent Forensics Physicist (4-scanner EARL2/MIRD-23 harmonization, longitudinal attribution, Critic-Verifier Audit).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "default": "EANM / EARL2 / QIBA Quantitative Nuclear Medicine Physics Dossier"},
+            },
+        },
+    },
 ]
 
 
@@ -215,6 +262,55 @@ def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             "output_mean_suv": res.output_mean_suv,
             "output_std_suv": res.output_std_suv,
             "provenance": res.provenance.model_dump(mode="json"),
+        }
+
+    if name == "quantnuc_compute_theranostic_dose":
+        scanner = ScannerSpec.model_validate(arguments["scanner"])
+        recon = ReconConfig.model_validate(arguments["recon"])
+        tps = [TimeActivityPoint.model_validate(tp) for tp in arguments["timepoints"]]
+        res = compute_pve_propagated_theranostic_dose(
+            lesion_id=str(arguments.get("lesion_id", "THERA_L1")),
+            lesion_diameter_mm=float(arguments["lesion_diameter_mm"]),
+            timepoints=tps,
+            scanner=scanner,
+            recon=recon,
+            isotope=arguments.get("isotope", "Lu-177"),
+        )
+        return res.model_dump(mode="json")
+
+    if name == "quantnuc_audit_3d_ct_ac_volume":
+        shift_z = float(arguments["breathing_shift_mm"])
+        energy = float(arguments.get("photon_energy_kev", 511.0))
+        vox = (2.5, 2.5, 2.5)
+        nz, ny, nx = 24, 32, 32
+        z_mm = (np.arange(nz) - (nz - 1) / 2.0) * vox[0]
+        zz = z_mm[:, None, None]
+        hu_true = np.broadcast_to(np.where(zz > 0.0, -720.0, 50.0), (nz, ny, nx)).copy()
+        hu_ct = np.broadcast_to(np.where(zz > -shift_z, -720.0, 50.0), (nz, ny, nx)).copy()
+        roi = np.zeros((nz, ny, nx), dtype=np.float64)
+        roi[(nz // 2 - 2) : (nz // 2 + 2), (ny // 2 - 3) : (ny // 2 + 3), (nx // 2 - 3) : (nx // 2 + 3)] = 1.0
+        _, rep = compute_3d_ct_ac_bias_volume(
+            hu_true,
+            hu_ct,
+            vox,
+            roi_mask=roi,
+            shift_mm=(shift_z, 0.0, 0.0),
+            photon_energy_kev=energy,
+            raise_on_severe=bool(arguments.get("raise_on_severe", False)),
+        )
+        return rep.model_dump(mode="json")
+
+    if name == "quantnuc_generate_physics_dossier":
+        agent = QuantitativeImagingForensicsAgent()
+        dossier = agent.build_complete_dossier(
+            title=str(arguments.get("title", "EANM / EARL2 / QIBA Quantitative Nuclear Medicine Physics Dossier"))
+        )
+        return {
+            "title": dossier.title,
+            "audit_report": dossier.audit_report.model_dump(mode="json") if dossier.audit_report else None,
+            "fleet_harmonization": [h.model_dump(mode="json") for h in dossier.fleet_harmonization],
+            "diagnoses": [d.model_dump(mode="json") for d in dossier.diagnoses],
+            "markdown": dossier.to_markdown(),
         }
 
     raise KeyError(f"Unknown MCP tool: {name}")
