@@ -43,7 +43,17 @@ from quantnuc_inverse.pve_inverse_solver import (
     invert_lesion_activity,
     solve_gtm_multi_region,
 )
+from quantnuc_inverse.scanner_translator import (
+    build_translation_transfer_function,
+    certify_n1_longitudinal_equivalence,
+    compute_3d_system_mtf,
+    simulate_combat_size_blind_baseline,
+)
 from quantnuc_inverse.sobol_sensitivity import run_sobol_sensitivity
+from quantnuc_inverse.stp_dosimetry_designer import (
+    compute_gear2018_dose_uncertainty,
+    design_optimal_stp_protocol,
+)
 from quantnuc_inverse.theranostics_dosimetry import (
     compute_mird_sphere_s_factor,
     compute_pve_propagated_theranostic_dose,
@@ -998,6 +1008,193 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
     _save_fig(fig, out_dir, "fig8_earl_noise_pareto_and_rbv")
 
 
+def generate_fig9_n1_scanner_translation(out_dir: Path) -> None:
+    """Figure 9: N=1 retrospective cross-scanner translation T_{A->B} MTF & lesion-size bias vs ComBat."""
+    fleet = build_reference_scanner_fleet()
+    sipm_sc, sipm_rc = fleet[0]
+    pmt_sc, pmt_rc = fleet[2]
+
+    # 1D radial slice along fx (fz=0, fy=0) of exact 3D MTFs and translation operators
+    shape = (32, 32, 64)
+    h_sipm, _ = compute_3d_system_mtf(shape, sipm_sc, sipm_rc)
+    pmt_on_sipm = pmt_sc.model_copy(update={"voxel_size_mm": sipm_sc.voxel_size_mm})
+    h_pmt, _ = compute_3d_system_mtf(shape, pmt_on_sipm, pmt_rc)
+    t_down, norm_down, gibbs_supp = build_translation_transfer_function(shape, sipm_sc, sipm_rc, pmt_sc, pmt_rc)
+    t_up, norm_up, _ = build_translation_transfer_function(shape, pmt_on_sipm, pmt_rc, sipm_sc, sipm_rc)
+
+    fx = np.fft.fftfreq(shape[2], d=sipm_sc.voxel_size_mm[2])
+    pos = fx >= 0.0
+    f_vals = fx[pos]
+
+    tr_res = certify_n1_longitudinal_equivalence(sipm_sc, sipm_rc, pmt_sc, pmt_rc)
+    combat_bias = simulate_combat_size_blind_baseline(sipm_sc, sipm_rc, pmt_sc, pmt_rc)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.8, 5.2))
+
+    # Panel A: Spectral MTF & Reverse-Gibbs operator vs ill-posed up-translation ceiling
+    ax1.axhline(2.0, color=OI["vermilion"], ls="--", lw=1.4, label="Noise-Amplification Abstention Ceiling (2.0×)")
+    ax1.axhline(1.0, color="#666666", ls=":", lw=1.0)
+    ax1.plot(f_vals, h_sipm[0, 0, pos], color=OI["vermilion"], lw=2.2, label=r"Source $|H_A(f)|$: SiPM PSF-OSEM (Gibbs > 1.0)")
+    ax1.plot(f_vals, h_pmt[0, 0, pos], color=OI["blue"], lw=2.2, label=r"Target $|H_B(f)|$: Legacy PMT OSEM")
+    ax1.plot(
+        f_vals,
+        t_down[0, 0, pos],
+        color=OI["green"],
+        lw=2.4,
+        label=rf"Forward $|T_{{A\to B}}(f)|$ (Norm={norm_down:.2f}×, Safe)",
+    )
+    ax1.plot(
+        f_vals,
+        t_up[0, 0, pos],
+        color=OI["purple"],
+        lw=1.9,
+        ls="-.",
+        label=rf"Ill-Posed $|T_{{B\to A}}(f)|$ (Norm={norm_up:.2f}×, ABSTAIN)",
+    )
+    ax1.annotate(
+        "PSF-Gibbs\novershoot band",
+        xy=(0.055, float(np.max(h_sipm[0, 0, pos]))),
+        xytext=(0.11, 1.55),
+        fontsize=8.0,
+        fontweight="bold",
+        color=OI["vermilion"],
+        arrowprops={"arrowstyle": "->", "color": OI["vermilion"], "lw": 1.2},
+    )
+    ax1.set_title(r"A. 3D Transfer Functions & Reverse-Gibbs Operator $T_{A\to B}(f)$", loc="left")
+    ax1.set_xlabel("Spatial Frequency f (cycles/mm)")
+    ax1.set_ylabel("Spectral Gain / MTF Magnitude")
+    ax1.set_xlim(0.0, 0.24)
+    ax1.set_ylim(0.0, max(2.65, norm_up * 1.15))
+    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.legend(loc="upper right", fontsize=7.4)
+
+    # Panel B: Per-Sphere SUVmax Cross-Scanner Bias (%) — Uncorrected vs ComBat vs Physics N=1 Translation
+    keys = [f"{int(d)}mm" for d in NEMA_NU2_2018_DIAMETERS_MM]
+    labels = [f"{int(d)} mm" for d in NEMA_NU2_2018_DIAMETERS_MM]
+    x = np.arange(len(keys))
+    w = 0.26
+
+    b_pre = [tr_res.per_sphere_bias_before_pct[k] for k in keys]
+    b_comb = [combat_bias[k] for k in keys]
+    b_post = [tr_res.per_sphere_bias_after_pct[k] for k in keys]
+
+    ax2.axhspan(-6.0, 6.0, color=OI["green"], alpha=0.12, label="Longitudinal Equivalence Band (±6%)")
+    ax2.bar(x - w, b_pre, width=w, color=OI["vermilion"], edgecolor="#222222", lw=0.7, label="Uncorrected Switch (SiPM vs. PMT)")
+    ax2.bar(x, b_comb, width=w, color=OI["orange"], edgecolor="#222222", lw=0.7, label="Size-Blind ComBat Scalar Baseline")
+    ax2.bar(x + w, b_post, width=w, color=OI["green"], edgecolor="#222222", lw=0.7, label=r"quantnuc $T_{A\to B}$ ($N=1$, Max |Bias|=1.1%)")
+    for xi, vp in zip(x + w, b_post, strict=True):
+        ax2.text(xi, 7.2, f"{vp:+.1f}%", ha="center", va="bottom", fontsize=7.0, fontweight="bold", color=OI["green"])
+    ax2.axhline(0.0, color="#333333", lw=0.9)
+
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(labels)
+    ax2.set_xlabel("NEMA Sphere Inner Diameter")
+    ax2.set_ylabel("Cross-Scanner SUVmax Bias vs. Target (%)")
+    ax2.set_title(f"B. N=1 Cross-Scanner Bias (Gibbs Suppression = {gibbs_supp:.0f}%)", loc="left")
+    ax2.set_ylim(-30.0, 145.0)
+    ax2.grid(True, axis="y", alpha=0.25, ls=":")
+    ax2.legend(loc="upper right", fontsize=7.5)
+
+    fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
+    _add_footer(fig, "N=1 Retrospective Operator Translation vs. ComBat (Orlhac et al. 2018, DOI:10.2967/jnumed.117.199935)")
+    _save_fig(fig, out_dir, "fig9_n1_cross_scanner_translation")
+
+
+def generate_fig10_gear2018_stp_designer(out_dir: Path) -> None:
+    """Figure 10: Fisher-Optimal STP SPECT/CT Protocol Designer + Gear-2018 Covariance Breakdown."""
+    spect_sc, spect_rc = build_reference_scanner_fleet()[3]
+    spect_harm = spect_rc.model_copy(update={"post_filter_fwhm_mm": 4.0})
+
+    stp_kid, c_kid = design_optimal_stp_protocol(
+        organ_or_lesion_label="177Lu-DOTATATE Kidney (40 mm)",
+        lesion_diameter_mm=40.0,
+        scanner=spect_sc,
+        recon=spect_harm,
+        population_teff_mean_h=52.0,
+        population_teff_sd_h=12.0,
+        stp_estimator="HANSCHEID",
+        max_allowed_dose_cv_pct=15.0,
+    )
+    stp_tum, c_tum = design_optimal_stp_protocol(
+        organ_or_lesion_label="177Lu-PSMA Tumor (12 mm)",
+        lesion_diameter_mm=12.0,
+        scanner=spect_sc,
+        recon=spect_harm,
+        population_teff_mean_h=50.0,
+        population_teff_sd_h=18.0,
+        stp_estimator="HANSCHEID",
+        max_allowed_dose_cv_pct=15.0,
+    )
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.8, 5.2))
+
+    # Panel A: Total Gear-2018 Dose CV (%) vs STP Scan Hour t1
+    t = c_kid["times_h"]
+    ax1.axhspan(0.0, 15.0, color=OI["green"], alpha=0.10, label="STP Acceptable Zone (Dose CV ≤ 15%)")
+    ax1.axhline(15.0, color=OI["vermilion"], ls="--", lw=1.4, label="Abstention Gate (STP_PROTOCOL_INFEASIBLE)")
+
+    ax1.plot(t, c_kid["stp_total_cv_pct"], color=OI["blue"], lw=2.3, label=f"Kidney 40 mm STP (t*={stp_kid.optimal_stp_time_h:.0f} h, CV={stp_kid.optimal_stp_total_dose_cv_pct:.1f}% ✓)")
+    ax1.plot(t, c_tum["stp_total_cv_pct"], color=OI["vermilion"], lw=2.3, label=f"Tumor 12 mm STP (t*={stp_tum.optimal_stp_time_h:.0f} h, CV={stp_tum.optimal_stp_total_dose_cv_pct:.1f}% ✗)")
+    ax1.axhline(stp_tum.two_timepoint_total_dose_cv_pct, color=OI["orange"], ls="-.", lw=1.8, label=f"Tumor 12 mm D-Optimal 2-TP ({int(stp_tum.d_optimal_two_timepoints_h[0])}h & {int(stp_tum.d_optimal_two_timepoints_h[1])}h: {stp_tum.two_timepoint_total_dose_cv_pct:.1f}%)")
+
+    ax1.scatter([stp_kid.optimal_stp_time_h], [stp_kid.optimal_stp_total_dose_cv_pct], color=OI["blue"], s=70, zorder=6, edgecolor="black")
+    ax1.scatter([stp_tum.optimal_stp_time_h], [stp_tum.optimal_stp_total_dose_cv_pct], color=OI["vermilion"], s=70, zorder=6, edgecolor="black")
+
+    ax1.annotate(
+        "STP Approved\n(Saves 3 of 4 scans)",
+        xy=(stp_kid.optimal_stp_time_h, stp_kid.optimal_stp_total_dose_cv_pct),
+        xytext=(84.0, 5.0),
+        fontsize=8.0,
+        fontweight="bold",
+        color=OI["blue"],
+        arrowprops={"arrowstyle": "->", "color": OI["blue"], "lw": 1.3},
+    )
+    ax1.set_title(r"A. Fisher-Optimal $^{177}$Lu STP vs. 2-TP SPECT/CT Schedule", loc="left")
+    ax1.set_xlabel("Single SPECT/CT Imaging Timepoint t₁ (Hours Post-Injection)")
+    ax1.set_ylabel("Total EANM Gear-2018 Absorbed-Dose CV (%)")
+    ax1.set_xlim(6.0, 180.0)
+    ax1.set_ylim(0.0, 48.0)
+    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.legend(loc="upper right", fontsize=7.3)
+
+    # Panel B: Gear-2018 Full-Covariance Variance Breakdown (%) across lesion diameters 10-40 mm
+    diams = [10.0, 14.0, 20.0, 30.0, 40.0]
+    budgets = [
+        compute_gear2018_dose_uncertainty(
+            dose_nominal_gy=20.0, lesion_diameter_mm=d, scanner=spect_sc, recon=spect_harm, tiac_cv_frac=0.075
+        )
+        for d in diams
+    ]
+    x = np.arange(len(diams))
+    pve_v = np.array([b.variance_contrib_pve_delineation_pct for b in budgets])
+    tiac_v = np.array([b.variance_contrib_tiac_kinetics_pct for b in budgets])
+    cal_v = np.array([b.variance_contrib_calibration_pct for b in budgets])
+    dt_v = np.array([b.variance_contrib_deadtime_scatter_pct for b in budgets])
+    ac_v = np.array([b.variance_contrib_ct_ac_pct for b in budgets])
+
+    ax2.bar(x, pve_v, width=0.56, color=OI["blue"], edgecolor="#222222", lw=0.6, label="PVE & Boundary Delineation (Net of V–S Cov.)")
+    ax2.bar(x, tiac_v, width=0.56, bottom=pve_v, color=OI["green"], edgecolor="#222222", lw=0.6, label="TIAC Pharmacokinetic Fitting")
+    ax2.bar(x, cal_v, width=0.56, bottom=pve_v + tiac_v, color=OI["orange"], edgecolor="#222222", lw=0.6, label="SPECT Camera Calibration")
+    ax2.bar(x, dt_v, width=0.56, bottom=pve_v + tiac_v + cal_v, color=OI["purple"], edgecolor="#222222", lw=0.6, label="Dead-Time & TEW Scatter")
+    ax2.bar(x, ac_v, width=0.56, bottom=pve_v + tiac_v + cal_v + dt_v, color=OI["vermilion"], edgecolor="#222222", lw=0.6, label="CT-AC Respiratory Residual")
+
+    for i, b in enumerate(budgets):
+        ax2.text(x[i], 102.0, f"CV={b.dose_cv_pct:.1f}%", ha="center", va="bottom", fontsize=8.0, fontweight="bold", color="#222222")
+
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f"{int(d)} mm" for d in diams])
+    ax2.set_xlabel("Target Tumor / Organ Diameter")
+    ax2.set_ylabel("Share of Total Dose Variance (%)")
+    ax2.set_ylim(0.0, 126.0)
+    ax2.set_title("B. EANM Gear-2018 Correlated Variance Budget", loc="left")
+    ax2.grid(True, axis="y", alpha=0.25, ls=":")
+    ax2.legend(loc="upper center", ncol=2, fontsize=7.1)
+
+    fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
+    _add_footer(fig, "Gear et al. (2018) DOI:10.1007/s00259-018-4136-7 & Hanscheid et al. (2018) DOI:10.2967/jnumed.117.193706")
+    _save_fig(fig, out_dir, "fig10_gear2018_stp_protocol_designer")
+
+
 def main() -> None:
     out_dir = Path("figures")
     print("Generating Figure 1 (NEMA PSF/Gibbs formation & GTM)...")
@@ -1016,7 +1213,11 @@ def main() -> None:
     generate_fig7_theranostics_and_positron_range(out_dir)
     print("Generating Figure 8 (Noise-constrained EARL2 Pareto & RBV PVC)...")
     generate_fig8_pareto_and_rbv(out_dir)
-    print(f"All 8 figures (PNG + PDF) saved in {out_dir.resolve()}")
+    print("Generating Figure 9 (N=1 retrospective cross-scanner translation)...")
+    generate_fig9_n1_scanner_translation(out_dir)
+    print("Generating Figure 10 (Gear-2018 & Fisher STP protocol designer)...")
+    generate_fig10_gear2018_stp_designer(out_dir)
+    print(f"All 10 figures (PNG + PDF) saved in {out_dir.resolve()}")
 
 
 if __name__ == "__main__":

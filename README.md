@@ -3,14 +3,14 @@
 **Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine with Frontier Agent Harness & MCP Server**
 
 [![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](pyproject.toml)
-[![Version: 0.2.0](https://img.shields.io/badge/version-0.2.0-teal.svg)](pyproject.toml)
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
-[![Tests: 38 Passed](https://img.shields.io/badge/tests-38%20passed%20(0%20warnings)-brightgreen.svg)](docs/AUDIT_REPORT.md)
-[![Coverage: 95.4%](https://img.shields.io/badge/coverage-95.4%25-brightgreen.svg)](docs/AUDIT_REPORT.md)
+[![Version: 0.3.0](https://img.shields.io/badge/version-0.3.0-teal.svg)](pyproject.toml)
+[![License: NC-RPU-1.0 (Non-Commercial Research & Personal Use)](https://img.shields.io/badge/license-Non--Commercial%20Research%20%2B%20Citation-orange.svg)](LICENSE)
+[![Tests: 44 Passed](https://img.shields.io/badge/tests-44%20passed%20(0%20warnings)-brightgreen.svg)](docs/AUDIT_REPORT.md)
+[![Coverage: 95.7%](https://img.shields.io/badge/coverage-95.7%25-brightgreen.svg)](docs/AUDIT_REPORT.md)
 [![Ruff: 0 Errors](https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg)](pyproject.toml)
-[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-9%20Physics%20Tools-blueviolet.svg)](src/quantnuc_inverse/harness/mcp_server.py)
+[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-11%20Physics%20Tools-blueviolet.svg)](src/quantnuc_inverse/harness/mcp_server.py)
 
-> **Research Software — NOT A MEDICAL DEVICE.** This repository is strictly for nuclear medicine physics research, phantom benchmarking, method development, and educational exploration. It is **not** FDA-cleared, CE-marked, or validated for clinical diagnosis, patient staging, or therapeutic dosimetry prescription.
+> **License & Regulatory Notice:** Licensed under [`NC-RPU-1.0`](LICENSE) — **Non-Commercial Academic Research (citation mandatory per [`CITATION.cff`](CITATION.cff)) and Personal Use ONLY; all commercial use is strictly prohibited.** **Research Software — NOT A MEDICAL DEVICE.** It is **not** FDA-cleared, CE-marked, or validated for clinical diagnosis, patient staging, or therapeutic dosimetry prescription.
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
 | **PET DICOM SUVbw / SUVlbm Round-Trip Fidelity** (`START` & `ADMIN` decay) | `< 0.1%` vs. analytical | **`< 0.05%`** |
 | **CT-AC +10 mm / −10 mm Shift (511 keV PET)** | Physical exponential bias | **`−25.8%`** (false-cold) / **`+34.7%`** (false-hot) |
 | **ΔSUV Attribution Conservation Error** (4 clinical scenarios) | `<= 0.15%` | **`0.01%`** |
-| **Test Suite, Coverage & Static Analysis** | `>= 25` tests, `0` warnings, `>= 75%` cov | **38 passed**, **`0` warnings**, **`95.38%` coverage**, **`0` ruff errors** |
+| **Test Suite, Coverage & Static Analysis** | `>= 25` tests, `0` warnings, `>= 75%` cov | **44 passed**, **`0` warnings**, **`95.67%` coverage**, **`0` ruff errors** |
 
 ---
 
@@ -98,6 +98,12 @@ All six figures are reproducibly generated via `scripts/generate_figures.py` and
 
 ### 8. Noise-Constrained EARL2 Pareto Frontier ($\text{COV} \le 15\%$) & Necrotic-Core RBV PVC (`v0.2.0`)
 ![EARL2 Noise Pareto Frontier and RBV PVC](figures/fig8_earl_noise_pareto_and_rbv.png)
+
+### 9. $N=1$ Retrospective Cross-Scanner Translation ($\mathcal{T}_{A\to B}$) vs. Size-Blind ComBat (`v0.3.0`)
+![N=1 Retrospective Cross-Scanner Translation](figures/fig9_n1_cross_scanner_translation.png)
+
+### 10. EANM Gear-2018 Full-Covariance Budget & Fisher-Optimal $^{177}\text{Lu}$ STP Protocol Designer (`v0.3.0`)
+![Gear-2018 and Fisher STP Protocol Designer](figures/fig10_gear2018_stp_protocol_designer.png)
 
 ---
 
@@ -185,7 +191,7 @@ Or register in an MCP client configuration:
 }
 ```
 
-**Exposed Provenance-Gated Tools (9):**
+**Exposed Provenance-Gated Tools (11):**
 - `quantnuc_forward_nema_rc` — 3D NEMA NU 2-2018 6-sphere RCmean / RCmax / RCpeak simulation.
 - `quantnuc_invert_pve_activity` — Rousset GTM, Müller–Gärtner, or Bayesian PVC inversion with 90% CI.
 - `quantnuc_synthesize_earl_filter` — Minimal Gaussian/Butterworth EARL1/EARL2/QIBA/MIRD-23 filter synthesizer.
@@ -195,6 +201,8 @@ Or register in an MCP client configuration:
 - `quantnuc_compute_theranostic_dose` — MIRD-23/26 PVE-propagated multi-timepoint tumor absorbed dose (Gy).
 - `quantnuc_audit_3d_ct_ac_volume` — 3D bilinear HU-to-$\mu(E)$ volumetric CT-AC respiratory bias audit.
 - `quantnuc_generate_physics_dossier` — Autonomous Forensics Physicist + Critic-Verifier Audit dossier.
+- `quantnuc_translate_scanner_n1` — $N=1$ retrospective cross-scanner translation $\mathcal{T}_{A \to B} = \mathcal{H}_B \mathcal{H}_A^{-1}$ with Reverse-Gibbs & noise-amplification abstention.
+- `quantnuc_design_stp_protocol` — EANM Gear-2018 full-covariance & Fisher-optimal Single-Timepoint (STP) vs. 2-Timepoint SPECT/CT schedule designer.
 
 **CLI Subcommands (`uv run quantnuc ...`):**
 ```bash
@@ -202,6 +210,8 @@ uv run quantnuc harmonize --pet-standard EARL2 --noise-constrained
 uv run quantnuc pvc --diameter 12 --observed-suv 5.1 --background-suv 2.0
 uv run quantnuc audit-ac --shift-mm 10.0 --energy-kev 511.0
 uv run quantnuc dose --diameter 14 --isotope Lu-177
+uv run quantnuc translate --direction sipm-to-pmt
+uv run quantnuc stp-design --diameter 40 --teff-mean-h 52 --teff-sd-h 12
 uv run quantnuc dossier --output-dir outputs/dossier
 ```
 </details>
@@ -214,4 +224,4 @@ uv run quantnuc dossier --output-dir outputs/dossier
 - [Independent Verification & Audit Report](docs/AUDIT_REPORT.md)
 - [Data Sources, Open Licenses & Verified BibTeX Citations](DATA_SOURCES_AND_CITATIONS.md)
 - [Citation Metadata (CFF)](CITATION.cff)
-- [Apache-2.0 License & Medical Device Disclaimer](LICENSE)
+- [NC-RPU-1.0 Non-Commercial Research & Personal Use License + Medical Device Disclaimer](LICENSE)

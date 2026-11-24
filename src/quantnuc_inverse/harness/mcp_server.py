@@ -1,4 +1,4 @@
-"""JSON-RPC 2.0 stdio MCP Server exposing 9 provenance-gated nuclear medicine physics tools.
+"""JSON-RPC 2.0 stdio MCP Server exposing 11 provenance-gated nuclear medicine physics tools.
 
 Tools exposed:
 1. `quantnuc_forward_nema_rc`
@@ -10,6 +10,8 @@ Tools exposed:
 7. `quantnuc_compute_theranostic_dose`
 8. `quantnuc_audit_3d_ct_ac_volume`
 9. `quantnuc_generate_physics_dossier`
+10. `quantnuc_translate_scanner_n1`
+11. `quantnuc_design_stp_protocol`
 
 Research Software — NOT A MEDICAL DEVICE.
 """
@@ -43,7 +45,9 @@ from quantnuc_inverse.ir import (
 )
 from quantnuc_inverse.provenance import build_provenance_record
 from quantnuc_inverse.pve_inverse_solver import invert_lesion_activity
+from quantnuc_inverse.scanner_translator import certify_n1_longitudinal_equivalence
 from quantnuc_inverse.sobol_sensitivity import run_sobol_sensitivity
+from quantnuc_inverse.stp_dosimetry_designer import design_optimal_stp_protocol
 from quantnuc_inverse.theranostics_dosimetry import compute_pve_propagated_theranostic_dose
 
 PROTOCOL_VERSION = "2024-11-05"
@@ -181,6 +185,43 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "name": "quantnuc_translate_scanner_n1",
+        "description": "Certify N=1 retrospective cross-scanner translation T_{A->B} = H_B H_A^{-1} (Reverse-Gibbs + size-aware de-harmonization) with noise-amplification abstention gate.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_scanner": {"type": "object"},
+                "source_recon": {"type": "object"},
+                "target_scanner": {"type": "object"},
+                "target_recon": {"type": "object"},
+                "regularization_lambda": {"type": "number", "default": 0.015},
+                "max_allowed_noise_amplification": {"type": "number", "default": 2.0},
+                "enforce_noise_gate": {"type": "boolean", "default": True},
+            },
+            "required": ["source_scanner", "source_recon", "target_scanner", "target_recon"],
+        },
+    },
+    {
+        "name": "quantnuc_design_stp_protocol",
+        "description": "Design Fisher-optimal Single-Timepoint (STP) vs. D-optimal 2-Timepoint SPECT/CT dosimetry schedule using EANM Gear-2018 full-covariance uncertainty propagation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "organ_or_lesion_label": {"type": "string", "default": "177Lu-DOTATATE Kidney"},
+                "lesion_diameter_mm": {"type": "number"},
+                "scanner": {"type": "object"},
+                "recon": {"type": "object"},
+                "isotope": {"type": "string", "enum": ["Lu-177", "I-131", "Y-90"], "default": "Lu-177"},
+                "population_teff_mean_h": {"type": "number", "default": 52.0},
+                "population_teff_sd_h": {"type": "number", "default": 12.0},
+                "stp_estimator": {"type": "string", "enum": ["HANSCHEID", "MADSEN"], "default": "HANSCHEID"},
+                "max_allowed_dose_cv_pct": {"type": "number", "default": 15.0},
+                "raise_on_infeasible": {"type": "boolean", "default": False},
+            },
+            "required": ["lesion_diameter_mm", "scanner", "recon"],
+        },
+    },
 ]
 
 
@@ -312,6 +353,33 @@ def _dispatch_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             "diagnoses": [d.model_dump(mode="json") for d in dossier.diagnoses],
             "markdown": dossier.to_markdown(),
         }
+
+    if name == "quantnuc_translate_scanner_n1":
+        res = certify_n1_longitudinal_equivalence(
+            source_scanner=ScannerSpec.model_validate(arguments["source_scanner"]),
+            source_recon=ReconConfig.model_validate(arguments["source_recon"]),
+            target_scanner=ScannerSpec.model_validate(arguments["target_scanner"]),
+            target_recon=ReconConfig.model_validate(arguments["target_recon"]),
+            regularization_lambda=float(arguments.get("regularization_lambda", 0.015)),
+            max_allowed_noise_amplification=float(arguments.get("max_allowed_noise_amplification", 2.0)),
+            enforce_noise_gate=bool(arguments.get("enforce_noise_gate", True)),
+        )
+        return res.model_dump(mode="json")
+
+    if name == "quantnuc_design_stp_protocol":
+        res, _ = design_optimal_stp_protocol(
+            organ_or_lesion_label=str(arguments.get("organ_or_lesion_label", "177Lu-DOTATATE Kidney")),
+            lesion_diameter_mm=float(arguments["lesion_diameter_mm"]),
+            scanner=ScannerSpec.model_validate(arguments["scanner"]),
+            recon=ReconConfig.model_validate(arguments["recon"]),
+            isotope=arguments.get("isotope", "Lu-177"),
+            population_teff_mean_h=float(arguments.get("population_teff_mean_h", 52.0)),
+            population_teff_sd_h=float(arguments.get("population_teff_sd_h", 12.0)),
+            stp_estimator=arguments.get("stp_estimator", "HANSCHEID"),
+            max_allowed_dose_cv_pct=float(arguments.get("max_allowed_dose_cv_pct", 15.0)),
+            raise_on_infeasible=bool(arguments.get("raise_on_infeasible", False)),
+        )
+        return res.model_dump(mode="json")
 
     raise KeyError(f"Unknown MCP tool: {name}")
 

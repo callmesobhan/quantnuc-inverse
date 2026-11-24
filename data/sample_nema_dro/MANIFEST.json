@@ -1,20 +1,20 @@
 {
-  "generated_utc": "2026-11-22T22:06:45.823906+00:00",
+  "generated_utc": "2026-11-24T21:17:51.705349+00:00",
   "disclaimer": "Research Software \u2014 NOT A MEDICAL DEVICE",
   "files": [
     {
       "file": "nema_nu2_2018_dro_pt.dcm",
       "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
-      "license": "Apache-2.0",
+      "license": "NC-RPU-1.0 (Non-Commercial Research & Personal Use Only)",
       "description": "NEMA NU 2-2018 6-sphere (10-37 mm, 4:1 ratio) IEC body phantom PET DRO slice (BQML, START decay-corrected).",
-      "sha256": "c9ac14ab4cbe8e9051ea034d0470dd760614f383880b152b04166c3f227d28ce"
+      "sha256": "7208c10fa8ddaea95fc2b8411e42c369a1cb521a8eafb8d02a22d4aa0289dea5"
     },
     {
       "file": "nema_nu2_2018_dro_ct.dcm",
       "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
-      "license": "Apache-2.0",
+      "license": "NC-RPU-1.0 (Non-Commercial Research & Personal Use Only)",
       "description": "Paired NEMA NU 2-2018 IEC body phantom CT attenuation map slice in HU.",
-      "sha256": "62b6d2f84626080b8a8e140164d050c46a3feb73d26752225e21c5f24bd7656c"
+      "sha256": "68f79915f4ee58fe0e9b17c1f8bd3e5ab6587d03de22e0a5bf89e9717f5f7504"
     },
     {
       "file": "pydicom_public_ct_sample.dcm",

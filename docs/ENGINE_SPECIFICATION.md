@@ -78,3 +78,12 @@ with bootstrap 95% confidence intervals across PSF FWHM, ROI delineation error (
 - **Region-Based Voxel-Wise (RBV) PVC**: Thomas et al. (2011) GTM + Yang ratio correction $I_{\text{RBV}}(\mathbf{x}) = I_{\text{obs}}(\mathbf{x}) \cdot S(\mathbf{x}) / (\mathcal{H}S)(\mathbf{x})$ for heterogeneous necrotic-core + viable-rim lesions.
 - **Noise-Constrained EARL2 Pareto Frontier**: Jointly evaluates RC corridor compliance, EANM background noise $\text{COV}_{\text{bg}} \le 15\%$, and 13 mm sphere CNR across `(iterations, FWHM)`.
 - **MIRD-23/26 Theranostic Absorbed-Dose Engine (`theranostics_dosimetry.py`)**: Multi-timepoint mono/bi-exponential TIAC fitting with `INSUFFICIENT_TIMEPOINTS_FOR_TIAC` abstention gate, finite-sphere beta/gamma MIRD S-factors (`Lu-177`, `I-131`, `Y-90`), and exact PVE `[p05, nominal, p95]` propagation into tumor absorbed dose (Gy).
+
+## 9. v0.3.0 Flagship Inverse & Protocol-Design Capabilities
+
+- **$N=1$ Retrospective Cross-Scanner Translation Operator (`scanner_translator.py`)**:
+  - Exact 3D MTF $H(\mathbf{f})$ + noise-regularized frequency translation $T_{A \to B}(\mathbf{f}) = H_B(\mathbf{f}) H_A^*(\mathbf{f}) / (|H_A(\mathbf{f})|^2 + \lambda (1 + (\|\mathbf{f}\|/f_{\text{nyq}})^4))$ with strict DC conservation $T_{A \to B}(0) = 1$.
+  - Exact $L^2 \to L^2$ operator spectral norm $\|T_{A \to B}\|_{2 \to 2} = \max_{\mathbf{f}} |T_{A \to B}(\mathbf{f})|$ gated by `TRANSLATION_NOISE_AMPLIFICATION_UNSAFE` (`> 2.0x`), plus blind NEMA RC-curve fingerprinting (`fingerprint_scanner_from_rc`).
+- **EANM Gear-2018 Full-Covariance Budget & Fisher-Optimal STP SPECT/CT Designer (`stp_dosimetry_designer.py`)**:
+  - Strictly positive-definite 7-parameter Gear et al. (2018) log-dose covariance matrix capturing camera calibration, dead-time/TEW scatter, CT-AC respiratory residual, PVE-RC sensitivity, volume–S-factor negative beta self-dose covariance cancellation ($\rho_{VS} = -0.96$), and TIAC uncertainty.
+  - Exact population-prior Hänscheid (2018) & Madsen (2018) STP RMSE curves + late-timepoint Poisson counting decay + Cramér–Rao Fisher Information 2-timepoint schedule optimizer gated by `STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP`.

@@ -1,9 +1,9 @@
-"""quantnuc-inverse: Quantitative PET/SPECT Image-Formation, PVE, PSF-Gibbs & EARL Harmonization Engine.
+"""quantnuc-inverse: Quantitative PET/SPECT Image-Formation, PVE, Retrospective N=1 Translation & STP Dosimetry Engine.
 
-Research Software — NOT A MEDICAL DEVICE.
+Non-Commercial Research & Personal Use License (NC-RPU-1.0). Research Software — NOT A MEDICAL DEVICE.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from quantnuc_inverse.dicom_io import (
     QuantDicomVolume,
@@ -38,14 +38,18 @@ from quantnuc_inverse.ir import (
     AbstentionError,
     ACArtifactReport,
     ActivityRecoveryResult,
+    CrossScannerTranslationResult,
     EARLCorridorSpec,
+    Gear2018UncertaintyBudget,
     HarmonizationFilterResult,
     LesionROI,
     NEMASphereSpec,
     ParetoHarmonizationPoint,
     ProvenanceRecord,
     ReconConfig,
+    ScannerFingerprintResult,
     ScannerSpec,
+    STPProtocolDesignResult,
     TheranosticDoseResult,
     TimeActivityPoint,
     VolumetricCTACReport,
@@ -58,7 +62,22 @@ from quantnuc_inverse.pve_inverse_solver import (
     invert_lesion_activity,
     solve_gtm_multi_region,
 )
+from quantnuc_inverse.scanner_translator import (
+    build_translation_transfer_function,
+    certify_n1_longitudinal_equivalence,
+    compute_3d_system_mtf,
+    fingerprint_scanner_from_rc,
+    simulate_combat_size_blind_baseline,
+    translate_reconstructed_volume,
+)
 from quantnuc_inverse.sobol_sensitivity import SobolSensitivityResult, run_sobol_sensitivity
+from quantnuc_inverse.stp_dosimetry_designer import (
+    CLINICAL_TEFF_PRIORS,
+    compute_fisher_two_timepoint_tiac_cv,
+    compute_gear2018_dose_uncertainty,
+    design_optimal_stp_protocol,
+    evaluate_stp_pk_rmse_curve,
+)
 from quantnuc_inverse.theranostics_dosimetry import (
     compute_mird_sphere_s_factor,
     compute_pve_propagated_theranostic_dose,
@@ -70,7 +89,10 @@ __all__ = [
     "AbstentionCode",
     "AbstentionError",
     "ActivityRecoveryResult",
+    "CLINICAL_TEFF_PRIORS",
+    "CrossScannerTranslationResult",
     "EARLCorridorSpec",
+    "Gear2018UncertaintyBudget",
     "HarmonizationFilterResult",
     "LesionROI",
     "NEMASphereSpec",
@@ -80,6 +102,8 @@ __all__ = [
     "QuantDicomVolume",
     "RESEARCH_DISCLAIMER",
     "ReconConfig",
+    "STPProtocolDesignResult",
+    "ScannerFingerprintResult",
     "ScannerSpec",
     "SobolSensitivityResult",
     "TheranosticDoseResult",
@@ -95,15 +119,23 @@ __all__ = [
     "build_synthetic_ct_dicom",
     "build_synthetic_dicom_series",
     "build_synthetic_nucmed_dicom",
+    "build_translation_transfer_function",
+    "certify_n1_longitudinal_equivalence",
     "compute_3d_ct_ac_bias_volume",
+    "compute_3d_system_mtf",
     "compute_ct_ac_mismatch_report",
+    "compute_fisher_two_timepoint_tiac_cv",
+    "compute_gear2018_dose_uncertainty",
     "compute_harmonization_pareto_frontier",
     "compute_mird_sphere_s_factor",
     "compute_pve_propagated_theranostic_dose",
     "compute_sha256",
     "compute_sphere_recovery_coefficients",
     "ct_hu_to_linear_attenuation_cm",
+    "design_optimal_stp_protocol",
     "estimate_background_cov_pct",
+    "evaluate_stp_pk_rmse_curve",
+    "fingerprint_scanner_from_rc",
     "fit_tiac_mbq_h_per_ml",
     "get_corridor_spec",
     "invert_lesion_activity",
@@ -113,7 +145,9 @@ __all__ = [
     "load_quantitative_nucmed_dicom",
     "resample_ct_to_pet_grid",
     "run_sobol_sensitivity",
+    "simulate_combat_size_blind_baseline",
     "simulate_nema_rc_curve",
     "solve_gtm_multi_region",
     "synthesize_harmonization_filter",
+    "translate_reconstructed_volume",
 ]

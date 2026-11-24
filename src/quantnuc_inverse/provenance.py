@@ -277,3 +277,54 @@ def assert_sufficient_timepoints_for_tiac(
             "Time-activity curve timestamps must be strictly increasing for TIAC dosimetry fitting.",
             details={"times_hours": times_hours},
         )
+
+
+def assert_translation_noise_safe(
+    *,
+    noise_amplification_factor: float,
+    max_allowed_noise_amplification: float,
+    source_scanner_id: str,
+    target_scanner_id: str,
+) -> None:
+    """Abstain when retrospective cross-scanner operator T_{A->B} amplifies quantum noise unsafely."""
+    if noise_amplification_factor > max_allowed_noise_amplification:
+        raise AbstentionError(
+            AbstentionCode.TRANSLATION_NOISE_AMPLIFICATION_UNSAFE,
+            (
+                f"Retrospective translation '{source_scanner_id}' -> '{target_scanner_id}' produces "
+                f"{noise_amplification_factor:.2f}x spectral noise amplification "
+                f"(exceeds safe ceiling {max_allowed_noise_amplification:.2f}x); abstain rather than hallucinating resolution."
+            ),
+            details={
+                "source_scanner_id": source_scanner_id,
+                "target_scanner_id": target_scanner_id,
+                "noise_amplification_factor": noise_amplification_factor,
+                "max_allowed_noise_amplification": max_allowed_noise_amplification,
+            },
+        )
+
+
+def assert_stp_protocol_feasible(
+    *,
+    stp_feasible: bool,
+    optimal_stp_time_h: float,
+    optimal_stp_total_dose_cv_pct: float,
+    max_allowed_dose_cv_pct: float,
+    d_optimal_two_timepoints_h: tuple[float, float],
+) -> None:
+    """Abstain from Single-Timepoint (STP) dosimetry when total Gear-2018 dose CV exceeds threshold."""
+    if not stp_feasible:
+        raise AbstentionError(
+            AbstentionCode.STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP,
+            (
+                f"Single-Timepoint SPECT/CT cannot meet Dose CV <= {max_allowed_dose_cv_pct:.1f}% "
+                f"(minimum achievable CV={optimal_stp_total_dose_cv_pct:.1f}% at t*={optimal_stp_time_h:.1f} h). "
+                f"Mandate D-optimal 2-timepoint protocol at {d_optimal_two_timepoints_h[0]:.0f} h & {d_optimal_two_timepoints_h[1]:.0f} h."
+            ),
+            details={
+                "optimal_stp_time_h": optimal_stp_time_h,
+                "optimal_stp_total_dose_cv_pct": optimal_stp_total_dose_cv_pct,
+                "max_allowed_dose_cv_pct": max_allowed_dose_cv_pct,
+                "d_optimal_two_timepoints_h": list(d_optimal_two_timepoints_h),
+            },
+        )

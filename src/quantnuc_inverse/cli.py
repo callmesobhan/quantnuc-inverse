@@ -19,6 +19,8 @@ from quantnuc_inverse.forward_image_formation import compute_ct_ac_mismatch_repo
 from quantnuc_inverse.harness.agent_orchestrator import QuantitativeImagingForensicsAgent
 from quantnuc_inverse.ir import RESEARCH_DISCLAIMER, AbstentionError, LesionROI, TimeActivityPoint
 from quantnuc_inverse.pve_inverse_solver import invert_lesion_activity
+from quantnuc_inverse.scanner_translator import certify_n1_longitudinal_equivalence
+from quantnuc_inverse.stp_dosimetry_designer import design_optimal_stp_protocol
 from quantnuc_inverse.theranostics_dosimetry import compute_pve_propagated_theranostic_dose
 
 
@@ -49,6 +51,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_dos = sub.add_parser("dossier", help="Run full Frontier Agent Forensics & Critic-Verifier Audit dossier.")
     p_dos.add_argument("--output-dir", default="outputs/dossier", help="Directory for Markdown + JSON provenance ledger.")
+
+    p_tr = sub.add_parser("translate", help="Certify N=1 retrospective cross-scanner translation (SiPM PSF -> EARL2/PMT).")
+    p_tr.add_argument("--direction", default="sipm-to-earl2", choices=["sipm-to-earl2", "sipm-to-pmt", "pmt-to-sipm"])
+    p_tr.add_argument("--reg-lambda", type=float, default=0.015)
+
+    p_stp = sub.add_parser("stp-design", help="Design Fisher-optimal Single-Timepoint vs. 2-Timepoint SPECT/CT protocol.")
+    p_stp.add_argument("--diameter", type=float, default=40.0, help="Target organ/lesion diameter in mm.")
+    p_stp.add_argument("--teff-mean-h", type=float, default=52.0)
+    p_stp.add_argument("--teff-sd-h", type=float, default=12.0)
+    p_stp.add_argument("--estimator", default="HANSCHEID", choices=["HANSCHEID", "MADSEN"])
+    p_stp.add_argument("--max-cv-pct", type=float, default=15.0)
 
     return parser
 
@@ -124,6 +137,36 @@ def main(argv: list[str] | None = None) -> int:
                     indent=2,
                 )
             )
+            return 0
+
+        if args.command == "translate":
+            fleet = build_reference_scanner_fleet()
+            sipm_sc, sipm_rc = fleet[0]
+            pmt_sc, pmt_rc = fleet[2]
+            earl2_rc = sipm_rc.model_copy(update={"post_filter_fwhm_mm": 6.4})
+            if args.direction == "sipm-to-earl2":
+                res = certify_n1_longitudinal_equivalence(sipm_sc, sipm_rc, sipm_sc, earl2_rc, regularization_lambda=args.reg_lambda)
+            elif args.direction == "sipm-to-pmt":
+                res = certify_n1_longitudinal_equivalence(sipm_sc, sipm_rc, pmt_sc, pmt_rc, regularization_lambda=args.reg_lambda)
+            else:
+                res = certify_n1_longitudinal_equivalence(pmt_sc, pmt_rc, sipm_sc, sipm_rc, regularization_lambda=args.reg_lambda)
+            print(res.model_dump_json(indent=2))
+            return 0
+
+        if args.command == "stp-design":
+            spect_sc, spect_rc = build_reference_scanner_fleet()[3]
+            res, _ = design_optimal_stp_protocol(
+                organ_or_lesion_label="CLI_Target",
+                lesion_diameter_mm=args.diameter,
+                scanner=spect_sc,
+                recon=spect_rc.model_copy(update={"post_filter_fwhm_mm": 4.0}),
+                population_teff_mean_h=args.teff_mean_h,
+                population_teff_sd_h=args.teff_sd_h,
+                stp_estimator=args.estimator,
+                max_allowed_dose_cv_pct=args.max_cv_pct,
+                raise_on_infeasible=False,
+            )
+            print(res.model_dump_json(indent=2))
             return 0
     except AbstentionError as exc:
         print(json.dumps(exc.to_dict(), indent=2), file=sys.stderr)

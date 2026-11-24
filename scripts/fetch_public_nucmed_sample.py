@@ -106,14 +106,14 @@ def stage_public_nucmed_samples(output_dir: str | Path = "data/sample_nema_dro")
         {
             "file": pet_path.name,
             "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
-            "license": "Apache-2.0",
+            "license": "NC-RPU-1.0 (Non-Commercial Research & Personal Use Only)",
             "description": "NEMA NU 2-2018 6-sphere (10-37 mm, 4:1 ratio) IEC body phantom PET DRO slice (BQML, START decay-corrected).",
             "sha256": _sha256_file(pet_path),
         },
         {
             "file": ct_path.name,
             "data_source_tag": "SYNTHETIC_NEMA_NU2_2018_DRO",
-            "license": "Apache-2.0",
+            "license": "NC-RPU-1.0 (Non-Commercial Research & Personal Use Only)",
             "description": "Paired NEMA NU 2-2018 IEC body phantom CT attenuation map slice in HU.",
             "sha256": _sha256_file(ct_path),
         },
@@ -150,7 +150,7 @@ def stage_public_nucmed_samples(output_dir: str | Path = "data/sample_nema_dro")
 1. **NEMA NU 2-2018 6-Sphere IEC Body Phantom Digital Reference Object (`nema_nu2_2018_dro_pt.dcm`, `nema_nu2_2018_dro_ct.dcm`)**
    - **Tag:** `SYNTHETIC_NEMA_NU2_2018_DRO`
    - **Geometry:** NEMA NU 2-2018 standard (all 6 hot spheres: 10, 13, 17, 22, 28, 37 mm; 57.2 mm ring radius; 4:1 sphere-to-background ratio; 50 mm central lung insert).
-   - **License:** Apache-2.0 (generated deterministically by `quantnuc-inverse`).
+   - **License:** NC-RPU-1.0 Non-Commercial Research & Personal Use Only (generated deterministically by `quantnuc-inverse`).
 2. **Bundled Open-License CT DICOM Sample (`pydicom_public_ct_sample.dcm`)**
    - **Tag:** `UPSTREAM_PYDICOM_OPEN_TEST_DATA`
    - **Upstream:** `pydicom` (`pydicom.examples.ct`, https://github.com/pydicom/pydicom)

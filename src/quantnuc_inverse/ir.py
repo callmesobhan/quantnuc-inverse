@@ -22,6 +22,8 @@ class AbstentionCode(StrEnum):
     EARL_CORRIDOR_INFEASIBLE = "EARL_CORRIDOR_INFEASIBLE"
     MISSING_DECAY_CORRECTION = "MISSING_DECAY_CORRECTION"
     INSUFFICIENT_TIMEPOINTS_FOR_TIAC = "INSUFFICIENT_TIMEPOINTS_FOR_TIAC"
+    TRANSLATION_NOISE_AMPLIFICATION_UNSAFE = "TRANSLATION_NOISE_AMPLIFICATION_UNSAFE"
+    STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP = "STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP"
 
 
 class AbstentionError(ValueError):
@@ -58,7 +60,7 @@ class ProvenanceRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     record_id: str = Field(..., min_length=4)
-    engine_version: str = Field(default="0.2.0")
+    engine_version: str = Field(default="0.3.0")
     timestamp_utc: str
     operation: str
     input_sha256: str = Field(..., min_length=64, max_length=64)
@@ -332,4 +334,82 @@ class TheranosticDoseResult(BaseModel):
     pvc_dose_p05_gy: float
     pvc_dose_p95_gy: float
     pve_dose_underestimation_pct: float
+    provenance: ProvenanceRecord
+
+
+class ScannerFingerprintResult(BaseModel):
+    """Inferred effective PSF FWHM and Gibbs ringing amplitude from a NEMA RC curve alone."""
+
+    model_config = ConfigDict(frozen=True)
+
+    inferred_psf_fwhm_xy_mm: float
+    inferred_gibbs_strength: float
+    rc_fit_rmse: float
+    provenance: ProvenanceRecord
+
+
+class CrossScannerTranslationResult(BaseModel):
+    """N=1 retrospective cross-scanner translation certificate (T_{A->B} = H_B H_A^{-1})."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_scanner_id: str
+    target_scanner_id: str
+    regularization_lambda: float
+    noise_amplification_factor: float
+    max_allowed_noise_amplification: float
+    noise_safe: bool
+    dc_conservation_error: float
+    gibbs_peak_suppression_pct: float
+    max_rc_mismatch_before: float
+    max_rc_mismatch_after: float
+    per_sphere_bias_before_pct: dict[str, float]
+    per_sphere_bias_after_pct: dict[str, float]
+    longitudinal_equivalent: bool
+    provenance: ProvenanceRecord
+
+
+class Gear2018UncertaintyBudget(BaseModel):
+    """EANM Gear et al. (2018) full-covariance absorbed dose uncertainty breakdown."""
+
+    model_config = ConfigDict(frozen=True)
+
+    isotope: Literal["Lu-177", "I-131", "Y-90"]
+    lesion_diameter_mm: float
+    dose_nominal_gy: float
+    dose_std_gy: float
+    dose_cv_pct: float
+    dose_p05_gy: float
+    dose_p95_gy: float
+    # Relative variance contribution (%) of each physical component (sum ~ 100%, covariance term explicit)
+    variance_contrib_calibration_pct: float
+    variance_contrib_deadtime_scatter_pct: float
+    variance_contrib_ct_ac_pct: float
+    variance_contrib_pve_delineation_pct: float
+    variance_contrib_tiac_kinetics_pct: float
+    volume_sfactor_covariance_reduction_pct: float
+    provenance: ProvenanceRecord
+
+
+class STPProtocolDesignResult(BaseModel):
+    """Fisher-optimal Single-Timepoint (STP) vs. D-optimal 2-Timepoint SPECT/CT protocol certificate."""
+
+    model_config = ConfigDict(frozen=True)
+
+    organ_or_lesion_label: str
+    isotope: Literal["Lu-177", "I-131", "Y-90"]
+    lesion_diameter_mm: float
+    population_teff_mean_h: float
+    population_teff_sd_h: float
+    stp_estimator: Literal["HANSCHEID", "MADSEN"]
+    optimal_stp_time_h: float
+    optimal_stp_total_dose_cv_pct: float
+    optimal_stp_pk_cv_pct: float
+    optimal_stp_pve_cv_pct: float
+    max_allowed_dose_cv_pct: float
+    stp_feasible: bool
+    recommended_protocol: Literal["SINGLE_TIMEPOINT_APPROVED", "TWO_TIMEPOINT_REQUIRED"]
+    d_optimal_two_timepoints_h: tuple[float, float]
+    two_timepoint_total_dose_cv_pct: float
+    scans_saved_vs_4tp: int
     provenance: ProvenanceRecord

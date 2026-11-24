@@ -1,25 +1,23 @@
-# Independent Verification & Audit Report — `quantnuc-inverse` v0.2.0
+# Independent Verification & Audit Report — `quantnuc-inverse` v0.3.0
 
-> **Notice:** Research Software — NOT A MEDICAL DEVICE.
+> **Notice:** Non-Commercial Research & Personal Use Only (`NC-RPU-1.0`). Research Software — NOT A MEDICAL DEVICE.
 
 ## 1. Executive Audit Summary
 
-An independent mathematical, numerical, visual, and software-engineering audit was conducted across the complete `quantnuc-inverse` v0.2.0 repository (`src/quantnuc_inverse/`, `tests/`, `scripts/`, `figures/`, and `data/sample_nema_dro/`).
+An independent mathematical, numerical, visual, and software-engineering audit was conducted across the complete `quantnuc-inverse` v0.3.0 repository (`src/quantnuc_inverse/`, `tests/`, `scripts/`, `figures/`, and `data/sample_nema_dro/`).
 
 | Audit Dimension | Requirement | Verified Result | Status |
 |---|---|---|:---:|
-| Unit & Integration Test Suite | `>= 25` tests, `0` warnings | **38 / 38 passed**, `0` warnings (`filterwarnings = ["error"]`) | **PASS** |
-| Branch & Statement Coverage | `>= 75%` total coverage | **95.38%** total (every module 90.2%–100.0%: `ir.py` 100%, `mcp_server.py` 98.7%, `pve_inverse_solver.py` 97.9%) | **PASS** |
+| Unit & Integration Test Suite | `>= 25` tests, `0` warnings | **44 / 44 passed**, `0` warnings (`filterwarnings = ["error"]`) | **PASS** |
+| Branch & Statement Coverage | `>= 75%` total coverage | **95.67%** total (`scanner_translator.py` 96.0%, `stp_dosimetry_designer.py` 97.5%, `mcp_server.py` 98.8%, `ir.py` 100%) | **PASS** |
 | Static Analysis (`ruff check`) | `0` lint errors | **0 errors** across `src/`, `tests/`, `scripts/` | **PASS** |
 | Rousset GTM & RBV Re-Projection Invariant | Residual `<= 1e-6` | **`4.4e-16`** (6-sphere NEMA) / **`8.9e-16`** (necrotic-core RBV) | **PASS** |
-| Total Activity Conservation | Closed partition conservative | **`< 1e-10`** (impulse & DoG Gibbs operator) | **PASS** |
-| 4-Scanner Fleet Harmonization + Noise COV | EARL2 & MIRD-23 + `COV <= 15%` | **4 / 4 feasible**, max post-filter violation **`0.00000`**, `noise_compliant=True` | **PASS** |
-| Hard Abstention Safety Gates | All 6 codes verified | All 6 (`UNCALIBRATED_SUV_METADATA`, `MISSING_DECAY_CORRECTION`, `SEVERE_CT_AC_MISMATCH`, `SUB_NYQUIST_LESION_UNRECOVERABLE`, `EARL_CORRIDOR_INFEASIBLE`, `INSUFFICIENT_TIMEPOINTS_FOR_TIAC`) tested | **PASS** |
-| 3D Multi-Slice DICOM & CT Resampling | `ImagePositionPatient` sorting & SUV | Lossless-precision 3D series round-trip + bilinear HU-to-$\mu(E)$ 3D CT-AC verified | **PASS** |
-| MIRD-26 Theranostic Dose Propagation | Lu-177 / I-131 / Y-90 PVE-to-Gy | 12 mm Lu-177 tumor `-50%` uncorrected PVE dose loss recovered with 90% CI | **PASS** |
-| SHA-256 Provenance Ledger | Deterministic tamper-evident chain | Verified intact + tampering unit-tested to return `False` | **PASS** |
-| MCP JSON-RPC 2.0 Server & CLI | All 9 MCP tools + 5 CLI commands | All 9 tools + `main()` stdio loop + all 5 `quantnuc` CLI subcommands verified | **PASS** |
-| Publication Figure Visual Audit | Inspect all 8 PNGs via `read_file` | All 8 PNGs inspected; all layout/physics defects resolved | **PASS** |
+| $N=1$ Cross-Scanner Translation $\mathcal{T}_{A \to B}$ | Size-aware bias + noise gate | `SiPM -> PMT`: `100%` Gibbs suppression, max bias **`1.1%`** (vs `69.4%` ComBat); ill-posed `PMT -> SiPM` (`4.94x` norm) cleanly abstains | **PASS** |
+| Gear-2018 & Fisher STP Protocol Designer | Correlated covariance + STP gate | Kidney 40 mm approved at `t*=60 h` (`CV=10.1%`, saves 3/4 scans); 12 mm tumor (`21.8%`) triggers `STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP` & prescribes 2-TP | **PASS** |
+| Hard Abstention Safety Gates | All 8 codes verified | All 8 abstention codes (`UNCALIBRATED_SUV_METADATA`, `MISSING_DECAY_CORRECTION`, `SEVERE_CT_AC_MISMATCH`, `SUB_NYQUIST_LESION_UNRECOVERABLE`, `EARL_CORRIDOR_INFEASIBLE`, `INSUFFICIENT_TIMEPOINTS_FOR_TIAC`, `TRANSLATION_NOISE_AMPLIFICATION_UNSAFE`, `STP_PROTOCOL_INFEASIBLE_REQUIRE_MTP`) tested | **PASS** |
+| MCP JSON-RPC 2.0 Server & CLI | All 11 MCP tools + 7 CLI commands | All 11 tools + `main()` stdio loop + all 7 `quantnuc` CLI subcommands verified | **PASS** |
+| Publication Figure Visual Audit | Inspect all 10 PNGs via `read_file` | All 10 PNGs visually audited; zero overlaps or clipping defects | **PASS** |
+| Non-Commercial Research License | NC-RPU-1.0 + mandatory citation | Enforced in `LICENSE`, `pyproject.toml`, `CITATION.cff`, `README.md` | **PASS** |
 
 ## 2. Quantitative Benchmark Results
 

@@ -1,11 +1,14 @@
 cff-version: 1.2.0
-message: "If you use quantnuc-inverse in academic research, please cite it using the metadata below. Research Software — NOT A MEDICAL DEVICE."
-title: "quantnuc-inverse: Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine"
-version: 0.2.0
-date-released: "2026-11-22"
-license: Apache-2.0
+message: "Citation is REQUIRED under the NC-RPU-1.0 Non-Commercial Research & Personal Use License for any research work using quantnuc-inverse. Research Software — NOT A MEDICAL DEVICE."
+title: "quantnuc-inverse: Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), Retrospective N=1 Cross-Scanner Translation & Gear-2018 Theranostic Dosimetry Engine"
+version: 0.3.0
+date-released: "2026-11-24"
+license: "NOASSERTION"
+repository-code: "https://github.com/callmesobhan/quantnuc-inverse"
 type: software
 authors:
+  - family-names: Shahbazi
+    given-names: Sobhan
   - name: "quantnuc-inverse Contributors"
 keywords:
   - nuclear-medicine
