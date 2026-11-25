@@ -172,6 +172,14 @@ def test_mcp_server_jsonrpc_protocol_all_tools_and_abstention() -> None:
         "quantnuc_translate_scanner_n1",
         "quantnuc_design_stp_protocol",
     }
+    for tool in tools:
+        assert isinstance(tool["description"], str) and len(tool["description"]) > 20
+        assert tool["annotations"] == {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        }
 
     fleet = build_reference_scanner_fleet()
     sc0, rc0 = fleet[0]
@@ -242,6 +250,83 @@ def test_mcp_server_jsonrpc_protocol_all_tools_and_abstention() -> None:
     )
     assert r_sob["result"]["isError"] is False
     assert "psf_fwhm_mm" in json.loads(r_sob["result"]["content"][0]["text"])["st"]
+
+    # 7. compute_theranostic_dose
+    sc_spect, rc_spect = fleet[3]
+    r_thera = handle_jsonrpc_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 13,
+            "method": "tools/call",
+            "params": {
+                "name": "quantnuc_compute_theranostic_dose",
+                "arguments": {
+                    "lesion_diameter_mm": 22.0,
+                    "timepoints": [
+                        {"time_hours": 4.0, "observed_activity_mbq_ml": 1.8, "background_activity_mbq_ml": 0.1},
+                        {"time_hours": 24.0, "observed_activity_mbq_ml": 1.4, "background_activity_mbq_ml": 0.08},
+                        {"time_hours": 72.0, "observed_activity_mbq_ml": 0.8, "background_activity_mbq_ml": 0.04},
+                    ],
+                    "scanner": sc_spect.model_dump(mode="json"),
+                    "recon": rc_spect.model_dump(mode="json"),
+                    "isotope": "Lu-177",
+                },
+            },
+        }
+    )
+    assert r_thera["result"]["isError"] is False
+    assert json.loads(r_thera["result"]["content"][0]["text"])["pvc_dose_nominal_gy"] > 0.0
+
+    # 8. audit_3d_ct_ac_volume
+    r_ac3d = handle_jsonrpc_request(
+        {"jsonrpc": "2.0", "id": 14, "method": "tools/call", "params": {"name": "quantnuc_audit_3d_ct_ac_volume", "arguments": {"breathing_shift_mm": 6.0}}}
+    )
+    assert r_ac3d["result"]["isError"] is False
+
+    # 9. generate_physics_dossier
+    r_dos = handle_jsonrpc_request(
+        {"jsonrpc": "2.0", "id": 15, "method": "tools/call", "params": {"name": "quantnuc_generate_physics_dossier", "arguments": {}}}
+    )
+    assert r_dos["result"]["isError"] is False
+    assert json.loads(r_dos["result"]["content"][0]["text"])["audit_report"]["overall_passed"] is True
+
+    # 10. translate_scanner_n1
+    sc_pmt, rc_pmt = fleet[2]
+    r_tr = handle_jsonrpc_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 16,
+            "method": "tools/call",
+            "params": {
+                "name": "quantnuc_translate_scanner_n1",
+                "arguments": {
+                    "source_scanner": sc_dict,
+                    "source_recon": rc_dict,
+                    "target_scanner": sc_pmt.model_dump(mode="json"),
+                    "target_recon": rc_pmt.model_dump(mode="json"),
+                },
+            },
+        }
+    )
+    assert r_tr["result"]["isError"] is False
+
+    # 11. design_stp_protocol
+    r_stp = handle_jsonrpc_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 17,
+            "method": "tools/call",
+            "params": {
+                "name": "quantnuc_design_stp_protocol",
+                "arguments": {
+                    "lesion_diameter_mm": 40.0,
+                    "scanner": sc_spect.model_dump(mode="json"),
+                    "recon": rc_spect.model_dump(mode="json"),
+                },
+            },
+        }
+    )
+    assert r_stp["result"]["isError"] is False
 
     # Unknown tool & unknown method return JSON-RPC -32601
     r_unk = handle_jsonrpc_request({"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "no_such_tool"}})

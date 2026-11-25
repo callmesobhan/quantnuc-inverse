@@ -56,6 +56,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_forward_nema_rc",
         "description": "Simulate 3D NEMA NU 2-2018 6-sphere Recovery Coefficients (RCmean, RCmax, RCpeak) including PSF-Gibbs ringing.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -69,6 +75,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_invert_pve_activity",
         "description": "Invert true lesion activity from observed SUV using Rousset GTM, Muller-Gartner, or Bayesian PVC with p05/nominal/p95 CI.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -83,6 +95,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_synthesize_earl_filter",
         "description": "Synthesize minimal post-reconstruction Gaussian/Butterworth harmonization filter for EARL1, EARL2, QIBA, or MIRD23_SPECT.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -98,6 +116,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_audit_ct_ac_mismatch",
         "description": "Compute exact CT-PET/SPECT respiratory attenuation-correction line-integral bias exp(int delta_mu ds) and abstention status.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -111,6 +135,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_diagnose_suv_shift",
         "description": "Decompose a longitudinal delta-SUV shift into PSF-Gibbs, PVE resolution, CT-AC respiratory artifact, and true biological change.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -135,6 +165,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_run_sobol_sensitivity",
         "description": "Run Saltelli-Jansen QMC global Sobol' sensitivity analysis (S1, ST, interactions) on quantitative SUV variance.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -149,6 +185,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_compute_theranostic_dose",
         "description": "Propagate Rousset GTM partial-volume recovery into MIRD-23/26 multi-timepoint tumor absorbed dose (Gy) with 90% uncertainty interval.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -165,6 +207,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_audit_3d_ct_ac_volume",
         "description": "Compute 3D bilinear HU-to-mu(E) ray-traced CT-AC respiratory mismatch bias across a lung-liver dome volume.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -178,6 +226,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_generate_physics_dossier",
         "description": "Run the end-to-end Frontier Agent Forensics Physicist (4-scanner EARL2/MIRD-23 harmonization, longitudinal attribution, Critic-Verifier Audit).",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -188,6 +242,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_translate_scanner_n1",
         "description": "Certify N=1 retrospective cross-scanner translation T_{A->B} = H_B H_A^{-1} (Reverse-Gibbs + size-aware de-harmonization) with noise-amplification abstention gate.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -205,6 +265,12 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "quantnuc_design_stp_protocol",
         "description": "Design Fisher-optimal Single-Timepoint (STP) vs. D-optimal 2-Timepoint SPECT/CT dosimetry schedule using EANM Gear-2018 full-covariance uncertainty propagation.",
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
         "inputSchema": {
             "type": "object",
             "properties": {
