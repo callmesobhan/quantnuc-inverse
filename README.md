@@ -2,13 +2,13 @@
 
 **Quantitative PET/SPECT Image-Formation, Partial-Volume (PVE), PSF-Gibbs & Cross-Scanner Harmonization Inverse Engine with Frontier Agent Harness & MCP Server**
 
-[![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue.svg)](pyproject.toml)
-[![Version: 0.3.0](https://img.shields.io/badge/version-0.3.0-teal.svg)](pyproject.toml)
-[![License: NC-RPU-1.0 (Non-Commercial Research & Personal Use)](https://img.shields.io/badge/license-Non--Commercial%20Research%20%2B%20Citation-orange.svg)](LICENSE)
-[![Tests: 44 Passed](https://img.shields.io/badge/tests-44%20passed%20(0%20warnings)-brightgreen.svg)](docs/AUDIT_REPORT.md)
-[![Coverage: 95.7%](https://img.shields.io/badge/coverage-95.7%25-brightgreen.svg)](docs/AUDIT_REPORT.md)
-[![Ruff: 0 Errors](https://img.shields.io/badge/ruff-0%20errors-brightgreen.svg)](pyproject.toml)
-[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-11%20Physics%20Tools-blueviolet.svg)](src/quantnuc_inverse/harness/mcp_server.py)
+[![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-00B4D8?style=flat-square&labelColor=0D1117)](pyproject.toml)
+[![Version: 0.3.0](https://img.shields.io/badge/version-0.3.0-2EC4B6?style=flat-square&labelColor=0D1117)](pyproject.toml)
+[![License: NC-RPU-1.0 (Non-Commercial Research & Personal Use)](https://img.shields.io/badge/license-Non--Commercial%20Research%20%2B%20Citation-F59E0B?style=flat-square&labelColor=0D1117)](LICENSE)
+[![Tests: 44 Passed](https://img.shields.io/badge/tests-44%20passed%20(0%20warnings)-2EC4B6?style=flat-square&labelColor=0D1117)](docs/AUDIT_REPORT.md)
+[![Coverage: 95.7%](https://img.shields.io/badge/coverage-95.7%25-00B4D8?style=flat-square&labelColor=0D1117)](docs/AUDIT_REPORT.md)
+[![Ruff: 0 Errors](https://img.shields.io/badge/ruff-0%20errors-2EC4B6?style=flat-square&labelColor=0D1117)](pyproject.toml)
+[![MCP: JSON-RPC 2.0](https://img.shields.io/badge/MCP-11%20Physics%20Tools-9D4EDD?style=flat-square&labelColor=0D1117)](src/quantnuc_inverse/harness/mcp_server.py)
 
 > **License & Regulatory Notice:** Licensed under [`NC-RPU-1.0`](LICENSE) — **Non-Commercial Academic Research (citation mandatory per [`CITATION.cff`](CITATION.cff)) and Personal Use ONLY; all commercial use is strictly prohibited.** **Research Software — NOT A MEDICAL DEVICE.** It is **not** FDA-cleared, CE-marked, or validated for clinical diagnosis, patient staging, or therapeutic dosimetry prescription.
 

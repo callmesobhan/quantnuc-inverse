@@ -1,7 +1,8 @@
-"""Generate 6 publication-grade nuclear medicine physics figures (300-DPI PNG + vector PDF).
+"""Generate 10 publication-grade nuclear medicine physics figures (300-DPI PNG + vector PDF).
 
-Aesthetic: JNM / EJNMMI Physics / Medical Physics publication styling, Okabe-Ito colorblind-safe
-palette, bold panel labels, mm scalebars, and SHA-256 provenance footers.
+Aesthetic: Dark Obsidian Molecular-Imaging Console (PET/SPECT Reading-Room workstation),
+colorblind-safe luminous molecular palette, glowing dark-pill panel badges, mm scalebars,
+and SHA-256 provenance footers.
 
 Research Software — NOT A MEDICAL DEVICE.
 """
@@ -18,7 +19,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Rectangle
+from matplotlib.transforms import ScaledTranslation
 
 from quantnuc_inverse import __version__
 from quantnuc_inverse.earl_harmonizer import (
@@ -60,38 +63,148 @@ from quantnuc_inverse.theranostics_dosimetry import (
     fit_tiac_mbq_h_per_ml,
 )
 
-# Okabe-Ito colorblind-safe palette
-OI = {
-    "blue": "#0072B2",
-    "vermilion": "#D55E00",
-    "green": "#009E73",
-    "purple": "#CC79A7",
-    "orange": "#E69F00",
-    "skyblue": "#56B4E9",
-    "black": "#1A1A1A",
-    "gray": "#6E6E6E",
+# Dark Obsidian Molecular-Imaging Console surface tokens
+CONSOLE = {
+    "bg": "#0D1117",        # Deep reading-room obsidian canvas
+    "axes": "#161B22",      # Elevated dark slate plot surface
+    "legend": "#1C2128",    # Console floating legend / callout panel
+    "spine": "#30363D",     # Crisp muted steel spines
+    "grid": "#262D38",      # Subtle dark technical gridlines
+    "text": "#F0F6FC",      # Luminous off-white titles / labels
+    "tick": "#C9D1D9",      # Soft silver tick labels
+    "muted": "#8B949E",     # Muted slate provenance footer & secondary notes
+    "badge_bg": "#1F2937",  # Dark-pill panel badge fill
+    "badge_fg": "#38BDF8",  # Glowing console cyan badge border & letter
 }
+
+# Signature Colorblind-Safe Luminous Molecular Palette (designed for dark obsidian)
+PAL = {
+    "gold": "#FFB703",      # Primary (SiPM PET / Focal)
+    "cyan": "#00D4FF",      # Secondary (TOF-PSF / Curve 2)
+    "violet": "#C77DFF",    # Tertiary (Legacy PMT)
+    "coral": "#FF6B8B",     # Quaternary (CZT SPECT / Alert / Gibbs)
+    "mint": "#2EC4B6",      # Safe / EARL Corridor / GTM / Bio-Mint
+    "silver": "#94A3B8",    # Reference / Grid / Neutral
+    "white": "#F0F6FC",     # High-contrast dashed Ground Truth
+}
+
+# Alias mapping plot roles onto the luminous dark-obsidian console palette
+OI = {
+    "blue": PAL["cyan"],
+    "vermilion": PAL["coral"],
+    "green": PAL["mint"],
+    "orange": PAL["gold"],
+    "purple": PAL["violet"],
+    "skyblue": "#38BDF8",
+    "black": PAL["white"],
+    "gray": PAL["silver"],
+}
+
+# Dark-obsidian-centered colorblind-safe diverging colormap for AC bias maps
+OBSIDIAN_AC_CMAP = LinearSegmentedColormap.from_list(
+    "obsidian_ac_diverging",
+    [
+        (0.00, "#72EFDD"),
+        (0.18, "#00D4FF"),
+        (0.36, "#0A4F70"),
+        (0.50, "#161B22"),
+        (0.64, "#6E1423"),
+        (0.82, "#FF6B8B"),
+        (1.00, "#FFB703"),
+    ],
+)
 
 plt.rcParams.update(
     {
         "font.family": "sans-serif",
         "font.sans-serif": ["DejaVu Sans", "Arial", "Helvetica"],
         "font.size": 9.5,
-        "axes.titlesize": 10.5,
+        "text.color": CONSOLE["text"],
+        "axes.titlesize": 10.2,
         "axes.titleweight": "bold",
-        "axes.labelsize": 9.5,
+        "axes.titlecolor": CONSOLE["text"],
+        "axes.labelsize": 9.4,
+        "axes.labelcolor": CONSOLE["text"],
+        "axes.edgecolor": CONSOLE["spine"],
+        "axes.linewidth": 0.9,
+        "axes.facecolor": CONSOLE["axes"],
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "legend.frameon": True,
-        "legend.framealpha": 0.92,
-        "legend.edgecolor": "#CCCCCC",
-        "legend.fontsize": 8.2,
+        "grid.color": CONSOLE["grid"],
+        "grid.linewidth": 0.6,
+        "grid.alpha": 0.95,
+        "xtick.color": CONSOLE["tick"],
+        "ytick.color": CONSOLE["tick"],
+        "xtick.labelcolor": CONSOLE["tick"],
+        "ytick.labelcolor": CONSOLE["tick"],
         "xtick.labelsize": 8.5,
         "ytick.labelsize": 8.5,
-        "figure.facecolor": "white",
-        "axes.facecolor": "white",
+        "legend.frameon": True,
+        "legend.framealpha": 0.94,
+        "legend.facecolor": CONSOLE["legend"],
+        "legend.edgecolor": CONSOLE["spine"],
+        "legend.labelcolor": CONSOLE["text"],
+        "legend.fontsize": 8.0,
+        "figure.facecolor": CONSOLE["bg"],
+        "figure.edgecolor": CONSOLE["bg"],
+        "savefig.facecolor": CONSOLE["bg"],
+        "savefig.edgecolor": CONSOLE["bg"],
     }
 )
+
+
+def _set_panel_header(
+    ax: plt.Axes,
+    letter: str,
+    title: str,
+    *,
+    title_fontsize: float = 9.8,
+    badge_offset_pt: float = 20.5,
+    pad: float = 9.0,
+) -> None:
+    """Render a glowing dark-pill panel badge (A, B, C...) beside a crisp off-white panel title."""
+    # Reserve vertical headroom for tight_layout while placing custom badge + title cleanly.
+    ax.set_title(" ", loc="left", pad=pad, fontsize=title_fontsize)
+    y_trans = ax.transAxes + ScaledTranslation(0.0, 5.5 / 72.0, ax.figure.dpi_scale_trans)
+    ax.text(
+        0.0,
+        1.0,
+        f" {letter} ",
+        transform=y_trans,
+        ha="left",
+        va="bottom",
+        fontsize=8.3,
+        fontweight="bold",
+        color=CONSOLE["badge_fg"],
+        bbox={
+            "boxstyle": "round,pad=0.20,rounding_size=0.28",
+            "fc": CONSOLE["badge_bg"],
+            "ec": CONSOLE["badge_fg"],
+            "lw": 1.05,
+        },
+        clip_on=False,
+    )
+    title_trans = ax.transAxes + ScaledTranslation(badge_offset_pt / 72.0, 5.5 / 72.0, ax.figure.dpi_scale_trans)
+    ax.text(
+        0.0,
+        1.0,
+        title,
+        transform=title_trans,
+        ha="left",
+        va="bottom",
+        fontsize=title_fontsize,
+        fontweight="bold",
+        color=CONSOLE["text"],
+        clip_on=False,
+    )
+
+
+def _style_colorbar(cbar: plt.Colorbar, label: str, fontsize: float = 8.5) -> None:
+    """Apply dark-console styling to colorbar outline, ticks, and label."""
+    cbar.set_label(label, fontsize=fontsize, color=CONSOLE["text"])
+    cbar.ax.tick_params(colors=CONSOLE["tick"], labelsize=8.0)
+    cbar.outline.set_edgecolor(CONSOLE["spine"])
+    cbar.outline.set_linewidth(0.9)
 
 
 def _add_footer(fig: plt.Figure, note: str) -> None:
@@ -102,7 +215,7 @@ def _add_footer(fig: plt.Figure, note: str) -> None:
         ha="center",
         va="bottom",
         fontsize=7.5,
-        color="#555555",
+        color=CONSOLE["muted"],
         style="italic",
     )
 
@@ -112,7 +225,7 @@ def _add_scalebar(
     length_mm: float = 20.0,
     x_right: float = 112.0,
     y_bottom: float = -82.0,
-    color: str = "white",
+    color: str = CONSOLE["text"],
 ) -> None:
     ax.plot([x_right - length_mm, x_right], [y_bottom, y_bottom], color=color, lw=2.8, solid_capstyle="butt")
     ax.text(
@@ -129,8 +242,21 @@ def _add_scalebar(
 
 def _save_fig(fig: plt.Figure, out_dir: Path, stem: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_dir / f"{stem}.png", dpi=300, bbox_inches="tight", pad_inches=0.12)
-    fig.savefig(out_dir / f"{stem}.pdf", bbox_inches="tight", pad_inches=0.12)
+    fig.savefig(
+        out_dir / f"{stem}.png",
+        dpi=300,
+        bbox_inches="tight",
+        pad_inches=0.14,
+        facecolor=CONSOLE["bg"],
+        edgecolor=CONSOLE["bg"],
+    )
+    fig.savefig(
+        out_dir / f"{stem}.pdf",
+        bbox_inches="tight",
+        pad_inches=0.14,
+        facecolor=CONSOLE["bg"],
+        edgecolor=CONSOLE["bg"],
+    )
     plt.close(fig)
 
 
@@ -180,16 +306,16 @@ def generate_fig1_nema_psf_gibbs(out_dir: Path) -> None:
     gs = fig.add_gridspec(2, 5, height_ratios=[1.15, 1.0], width_ratios=[1.0, 1.0, 1.0, 1.0, 0.08], hspace=0.40, wspace=0.22)
 
     panels = [
-        ("A. Ground Truth DRO (4:1)", vol_true[mid_z]),
-        ("B. Legacy OSEM (PVE Loss)", vol_osem[mid_z]),
-        ("C. Unharmonized SiPM PSF (Gibbs)", vol_psf[mid_z]),
-        ("D. EARL2 + GTM Recovered", vol_gtm_vis),
+        ("A", "Ground Truth DRO (4:1)", vol_true[mid_z]),
+        ("B", "Legacy OSEM (PVE Loss)", vol_osem[mid_z]),
+        ("C", "SiPM PSF (Gibbs)", vol_psf[mid_z]),
+        ("D", "EARL2 + GTM Recovered", vol_gtm_vis),
     ]
     im_ref = None
-    for idx, (title, slc) in enumerate(panels):
+    for idx, (letter, title, slc) in enumerate(panels):
         ax = fig.add_subplot(gs[0, idx])
         im_ref = ax.imshow(slc, cmap="inferno", vmin=0.0, vmax=4.8, origin="lower", extent=extent)
-        ax.set_title(title, fontsize=9.6, pad=6)
+        _set_panel_header(ax, letter, title, title_fontsize=8.8, badge_offset_pt=19.5, pad=8.0)
         ax.set_xlabel("x (mm)")
         if idx == 0:
             ax.set_ylabel("y (mm)")
@@ -201,12 +327,12 @@ def generate_fig1_nema_psf_gibbs(out_dir: Path) -> None:
                     cx * scale,
                     cy * scale,
                     f"{int(sp.diameter_mm)}",
-                    color="white",
+                    color=CONSOLE["text"],
                     fontsize=7.6,
                     fontweight="bold",
                     ha="center",
                     va="center",
-                    bbox={"boxstyle": "round,pad=0.12", "fc": "black", "ec": "none", "alpha": 0.55},
+                    bbox={"boxstyle": "round,pad=0.14", "fc": CONSOLE["bg"], "ec": CONSOLE["spine"], "alpha": 0.78},
                 )
         else:
             ax.set_yticklabels([])
@@ -217,7 +343,7 @@ def generate_fig1_nema_psf_gibbs(out_dir: Path) -> None:
     # Dedicated colorbar axis (zero overlap with Panel D)
     cax = fig.add_subplot(gs[0, 4])
     cbar = fig.colorbar(im_ref, cax=cax)
-    cbar.set_label("Normalized Activity (SUV)", fontsize=8.8)
+    _style_colorbar(cbar, "Normalized Activity (SUV)", fontsize=8.8)
 
     # Panel E: 1D line profile across 22 mm & 10 mm spheres
     ax_prof = fig.add_subplot(gs[1, :2])
@@ -239,13 +365,13 @@ def generate_fig1_nema_psf_gibbs(out_dir: Path) -> None:
         color=OI["vermilion"],
         arrowprops={"arrowstyle": "->", "color": OI["vermilion"], "lw": 1.2},
     )
-    ax_prof.text(-57.2, 0.35, "22 mm sphere", ha="center", fontsize=8.0, color="#444444", fontweight="bold")
-    ax_prof.text(57.2, 0.35, "10 mm sphere", ha="center", fontsize=8.0, color="#444444", fontweight="bold")
-    ax_prof.set_title("E. Central Axial Line Profile (22 mm & 10 mm Spheres)", loc="left", pad=6)
+    ax_prof.text(-57.2, 0.35, "22 mm sphere", ha="center", fontsize=8.0, color=CONSOLE["tick"], fontweight="bold")
+    ax_prof.text(57.2, 0.35, "10 mm sphere", ha="center", fontsize=8.0, color=CONSOLE["tick"], fontweight="bold")
+    _set_panel_header(ax_prof, "E", "Central Axial Line Profile (22 mm & 10 mm Spheres)")
     ax_prof.set_xlabel("Transverse Position x (mm)")
     ax_prof.set_ylabel("Activity Concentration (SUV)")
     ax_prof.set_ylim(0.0, 5.55)
-    ax_prof.grid(True, alpha=0.25, ls=":")
+    ax_prof.grid(True, alpha=0.65, ls=":")
     ax_prof.legend(loc="upper right", ncol=1, fontsize=7.5)
 
     # Panel F: 6-sphere recovery bar chart
@@ -260,21 +386,21 @@ def generate_fig1_nema_psf_gibbs(out_dir: Path) -> None:
 
     x_pos = np.arange(len(labels))
     w = 0.25
-    ax_bar.bar(x_pos - w, osem_means, width=w, color=OI["blue"], label="Legacy OSEM Mean (PVE)")
-    ax_bar.bar(x_pos, psf_maxs, width=w, color=OI["vermilion"], label="SiPM PSF Max (Gibbs)")
-    ax_bar.bar(x_pos + w, gtm_recs, width=w, color=OI["green"], label="Rousset GTM Inverted")
+    ax_bar.bar(x_pos - w, osem_means, width=w, color=OI["blue"], edgecolor=CONSOLE["bg"], lw=0.6, label="Legacy OSEM Mean (PVE)")
+    ax_bar.bar(x_pos, psf_maxs, width=w, color=OI["vermilion"], edgecolor=CONSOLE["bg"], lw=0.6, label="SiPM PSF Max (Gibbs)")
+    ax_bar.bar(x_pos + w, gtm_recs, width=w, color=OI["green"], edgecolor=CONSOLE["bg"], lw=0.6, label="Rousset GTM Inverted")
     ax_bar.axhline(4.0, color=OI["black"], ls="--", lw=1.4, label="Ground Truth (4.00)")
     ax_bar.set_xticks(x_pos)
     ax_bar.set_xticklabels(labels)
     ax_bar.set_ylim(0.0, 5.95)
     ax_bar.set_ylabel("Regional Activity (SUV)")
     ax_bar.set_xlabel("NEMA NU 2-2018 Sphere Diameter")
-    ax_bar.set_title(
-        f"F. Multi-Region Recovery (GTM Re-proj. Residual = {gtm_out.reprojection_residual_inf:.1e})",
-        loc="left",
-        pad=6,
+    _set_panel_header(
+        ax_bar,
+        "F",
+        f"Multi-Region Recovery (GTM Res. = {gtm_out.reprojection_residual_inf:.1e})",
     )
-    ax_bar.grid(True, axis="y", alpha=0.25, ls=":")
+    ax_bar.grid(True, axis="y", alpha=0.65, ls=":")
     ax_bar.legend(loc="upper center", ncol=2, fontsize=7.5)
 
     fig.subplots_adjust(bottom=0.10, top=0.93, left=0.06, right=0.95)
@@ -323,12 +449,12 @@ def generate_fig2_earl_corridors(out_dir: Path) -> None:
             e2_lo, e2_hi = earl2.rc_peak_lower, earl2.rc_peak_upper
             m_lo, m_hi = mird23.rc_peak_lower, mird23.rc_peak_upper
 
-        ax.fill_between(diams, e1_lo, e1_hi, color="#BBBBBB", alpha=0.28, label="EARL1 Corridor")
-        ax.fill_between(diams, e2_lo, e2_hi, color=OI["skyblue"], alpha=0.30, label="EARL2 Corridor (PET)")
+        ax.fill_between(diams, e1_lo, e1_hi, color=PAL["silver"], alpha=0.16, label="EARL1 Corridor")
+        ax.fill_between(diams, e2_lo, e2_hi, color=OI["skyblue"], alpha=0.20, label="EARL2 Corridor (PET)")
         ax.plot(diams, e2_lo, color=OI["blue"], ls=":", lw=1.0)
         ax.plot(diams, e2_hi, color=OI["blue"], ls=":", lw=1.0)
-        ax.fill_between(diams, m_lo, m_hi, color=OI["purple"], alpha=0.12, label="MIRD-23 Corridor (SPECT)")
-        ax.axhline(1.0, color="#666666", ls="--", lw=0.9, alpha=0.7)
+        ax.fill_between(diams, m_lo, m_hi, color=OI["purple"], alpha=0.15, label="MIRD-23 Corridor (SPECT)")
+        ax.axhline(1.0, color=CONSOLE["muted"], ls="--", lw=0.9, alpha=0.8)
 
     # Panel A: RCmax BEFORE
     _shade_corridors(ax_a, "max")
@@ -336,10 +462,10 @@ def generate_fig2_earl_corridors(out_dir: Path) -> None:
         col, mk, ls = styles[res.scanner_id]
         vals = [res.pre_filter_rc_max[k] for k in keys]
         ax_a.plot(diams, vals, color=col, marker=mk, ls=ls, lw=2.0, ms=6, label=res.scanner_id.replace("_", " "))
-    ax_a.set_title("A. RCmax BEFORE Harmonization (PSF-Gibbs Overshoot & PVE)", loc="left")
+    _set_panel_header(ax_a, "A", "RCmax BEFORE Harmonization (PSF-Gibbs & PVE)")
     ax_a.set_ylabel("Recovery Coefficient (RCmax)")
     ax_a.set_ylim(0.15, 1.42)
-    ax_a.grid(True, alpha=0.25, ls=":")
+    ax_a.grid(True, alpha=0.65, ls=":")
     ax_a.legend(loc="lower right", ncol=2, fontsize=7.4)
 
     # Panel B: RCmax AFTER
@@ -349,10 +475,10 @@ def generate_fig2_earl_corridors(out_dir: Path) -> None:
         vals = [res.post_filter_rc_max[k] for k in keys]
         lbl = f"{res.scanner_id.replace('_', ' ')} (FWHM={res.optimal_post_filter_fwhm_mm:.1f} mm)"
         ax_b.plot(diams, vals, color=col, marker=mk, ls=ls, lw=2.0, ms=6, label=lbl)
-    ax_b.set_title("B. RCmax AFTER Minimal Filter Synthesis (0.0000 Violation)", loc="left")
+    _set_panel_header(ax_b, "B", "RCmax AFTER Filter Synthesis (0.0000 Violation)")
     ax_b.set_ylabel("Recovery Coefficient (RCmax)")
     ax_b.set_ylim(0.15, 1.42)
-    ax_b.grid(True, alpha=0.25, ls=":")
+    ax_b.grid(True, alpha=0.65, ls=":")
     ax_b.legend(loc="lower right", ncol=1, fontsize=7.4)
 
     # Panel C: RCmean AFTER
@@ -363,12 +489,12 @@ def generate_fig2_earl_corridors(out_dir: Path) -> None:
         post_v = [res.post_filter_rc_mean[k] for k in keys]
         ax_c.plot(diams, pre_v, color=col, ls=":", lw=1.2, alpha=0.45)
         ax_c.plot(diams, post_v, color=col, marker=mk, ls=ls, lw=2.0, ms=5.5, label=res.scanner_id.replace("_", " "))
-    ax_c.set_title("C. RCmean (A50% Isocontour) Post-Harmonization (Dotted = Pre)", loc="left")
+    _set_panel_header(ax_c, "C", "RCmean (A50% Isocontour) Post-Harmonization")
     ax_c.set_xlabel("NEMA Sphere Inner Diameter (mm)")
     ax_c.set_ylabel("Recovery Coefficient (RCmean)")
     ax_c.set_ylim(0.15, 1.15)
     ax_c.set_xticks(diams)
-    ax_c.grid(True, alpha=0.25, ls=":")
+    ax_c.grid(True, alpha=0.65, ls=":")
     ax_c.legend(loc="lower right", ncol=2, fontsize=7.4)
 
     # Panel D: RCpeak AFTER
@@ -379,12 +505,12 @@ def generate_fig2_earl_corridors(out_dir: Path) -> None:
         post_v = [res.post_filter_rc_peak[k] for k in keys]
         ax_d.plot(diams, pre_v, color=col, ls=":", lw=1.2, alpha=0.45)
         ax_d.plot(diams, post_v, color=col, marker=mk, ls=ls, lw=2.0, ms=5.5, label=res.scanner_id.replace("_", " "))
-    ax_d.set_title("D. RCpeak (1 cm³ Sphere VOI) Post-Harmonization (Dotted = Pre)", loc="left")
+    _set_panel_header(ax_d, "D", "RCpeak (1 cm³ Sphere VOI) Post-Harmonization")
     ax_d.set_xlabel("NEMA Sphere Inner Diameter (mm)")
     ax_d.set_ylabel("Recovery Coefficient (RCpeak)")
     ax_d.set_ylim(0.15, 1.18)
     ax_d.set_xticks(diams)
-    ax_d.grid(True, alpha=0.25, ls=":")
+    ax_d.grid(True, alpha=0.65, ls=":")
     ax_d.legend(loc="lower right", ncol=2, fontsize=7.4)
 
     fig.tight_layout(rect=(0.0, 0.03, 1.0, 0.99))
@@ -434,7 +560,7 @@ def generate_fig3_pve_uncertainty(out_dir: Path) -> None:
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.2, 5.0))
 
     # Panel A: SUV curves + 90% CI ribbon + sub-Nyquist zone
-    ax1.axvspan(4.0, 6.0, color="#E0E0E0", alpha=0.55, label="Sub-Nyquist Abstention Gate (<6 mm)")
+    ax1.axvspan(4.0, 6.0, color=CONSOLE["spine"], alpha=0.55, label="Sub-Nyquist Abstention Gate (<6 mm)")
     ax1.axhline(true_suv, color=OI["black"], ls="--", lw=1.6, label=f"Ground Truth SUV ({true_suv:.1f})")
     ax1.fill_between(diams, gtm_p05, gtm_p95, color=OI["green"], alpha=0.22, label="GTM 90% Bias–Variance CI [p05, p95]")
     ax1.plot(diams, gtm_nom, color=OI["green"], marker="o", lw=2.2, ms=5.5, label="Rousset GTM Exact Inversion")
@@ -450,12 +576,12 @@ def generate_fig3_pve_uncertainty(out_dir: Path) -> None:
         color=OI["blue"],
         arrowprops={"arrowstyle": "->", "color": OI["blue"], "lw": 1.3},
     )
-    ax1.set_title("A. Partial-Volume Bias vs. Inverse Recovery & 90% Uncertainty", loc="left")
+    _set_panel_header(ax1, "A", "Partial-Volume Bias vs. Inverse Recovery & 90% CI")
     ax1.set_xlabel("Lesion Inner Diameter (mm)")
     ax1.set_ylabel("Lesion Activity Concentration (SUV)")
     ax1.set_xlim(4.0, 41.5)
     ax1.set_ylim(2.0, 12.2)
-    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.grid(True, alpha=0.65, ls=":")
     ax1.legend(loc="upper right", fontsize=7.6)
 
     # Panel B: Bias-variance relative uncertainty across contrast ratios (2:1, 4:1, 8:1)
@@ -492,14 +618,15 @@ def generate_fig3_pve_uncertainty(out_dir: Path) -> None:
         42.0,
         "Dotted lines: Uncorrected PVE |Bias| (%)\nSolid lines: GTM 90% CI Half-Width (%)",
         fontsize=8.0,
-        bbox={"boxstyle": "round,pad=0.35", "fc": "#F8F9FA", "ec": "#CCCCCC"},
+        color=CONSOLE["text"],
+        bbox={"boxstyle": "round,pad=0.35", "fc": CONSOLE["legend"], "ec": CONSOLE["spine"]},
     )
-    ax2.set_title("B. PVE Bias vs. Inverse Variance Tradeoff by Contrast Ratio", loc="left")
+    _set_panel_header(ax2, "B", "PVE Bias vs. Inverse Variance by Contrast Ratio")
     ax2.set_xlabel("Lesion Inner Diameter (mm)")
     ax2.set_ylabel("Relative Error / 90% CI Half-Width (%)")
     ax2.set_xlim(5.0, 41.5)
     ax2.set_ylim(0.0, 66.0)
-    ax2.grid(True, alpha=0.25, ls=":")
+    ax2.grid(True, alpha=0.65, ls=":")
     ax2.legend(loc="upper right", fontsize=7.6)
 
     fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
@@ -519,26 +646,26 @@ def generate_fig4_ct_ac_mismatch(out_dir: Path) -> None:
 
     # Panel A: True Activity with PET vs CT diaphragm overlays
     im_a = ax_a.imshow(sim["true_activity"], cmap="inferno", vmin=0.0, vmax=8.5, origin="lower", extent=extent)
-    ax_a.plot(x_mm, sim["dome_z_true"], color="#56B4E9", lw=2.0, ls="-", label="PET Diaphragm (True)")
-    ax_a.plot(x_mm, sim["dome_z_ct"], color="#009E73", lw=2.0, ls="--", label="CT Diaphragm (+10 mm Insp.)")
-    ax_a.set_title("A. True Activity & Respiratory Phase Mismatch (+10 mm)", loc="left")
+    ax_a.plot(x_mm, sim["dome_z_true"], color=PAL["cyan"], lw=2.0, ls="-", label="PET Diaphragm (True)")
+    ax_a.plot(x_mm, sim["dome_z_ct"], color=PAL["mint"], lw=2.0, ls="--", label="CT Diaphragm (+10 mm Insp.)")
+    _set_panel_header(ax_a, "A", "True Activity & Respiratory Mismatch (+10 mm)")
     ax_a.set_xlabel("Lateral Position x (mm)")
     ax_a.set_ylabel("Superior–Inferior z (mm)")
     ax_a.legend(loc="upper right", fontsize=7.6)
     _add_scalebar(ax_a, length_mm=20.0, x_right=112.0, y_bottom=-112.0)
     cbar_a = fig.colorbar(im_a, ax=ax_a, fraction=0.046, pad=0.03)
-    cbar_a.set_label("True SUV", fontsize=8.4)
+    _style_colorbar(cbar_a, "True SUV", fontsize=8.4)
 
     # Panel B: Attenuation Correction Bias Map (%)
-    im_b = ax_b.imshow(sim["pct_error_map"], cmap="RdBu_r", vmin=-38.0, vmax=38.0, origin="lower", extent=extent)
-    ax_b.plot(x_mm, sim["dome_z_true"], color="black", lw=1.2, ls=":")
-    ax_b.plot(x_mm, sim["dome_z_ct"], color="black", lw=1.2, ls="--")
-    ax_b.set_title(r"B. Attenuation Bias Map $\exp(\int \Delta\mu\,ds) - 1$ (%)", loc="left")
+    im_b = ax_b.imshow(sim["pct_error_map"], cmap=OBSIDIAN_AC_CMAP, vmin=-38.0, vmax=38.0, origin="lower", extent=extent)
+    ax_b.plot(x_mm, sim["dome_z_true"], color=CONSOLE["text"], lw=1.3, ls=":")
+    ax_b.plot(x_mm, sim["dome_z_ct"], color=CONSOLE["text"], lw=1.3, ls="--")
+    _set_panel_header(ax_b, "B", r"Attenuation Bias Map $\exp(\int \Delta\mu\,ds) - 1$ (%)")
     ax_b.set_xlabel("Lateral Position x (mm)")
     ax_b.set_ylabel("Superior–Inferior z (mm)")
-    _add_scalebar(ax_b, length_mm=20.0, x_right=112.0, y_bottom=-112.0, color="black")
+    _add_scalebar(ax_b, length_mm=20.0, x_right=112.0, y_bottom=-112.0, color=CONSOLE["text"])
     cbar_b = fig.colorbar(im_b, ax=ax_b, fraction=0.046, pad=0.03)
-    cbar_b.set_label("AC SUV Error (%)", fontsize=8.4)
+    _style_colorbar(cbar_b, "AC SUV Error (%)", fontsize=8.4)
 
     # Panel C: Reconstructed PET with False-Cold Liver-Dome Lesion
     im_c = ax_c.imshow(sim["reconstructed_activity"], cmap="inferno", vmin=0.0, vmax=8.5, origin="lower", extent=extent)
@@ -546,38 +673,38 @@ def generate_fig4_ct_ac_mismatch(out_dir: Path) -> None:
         "False-cold liver dome\nlesion (−26% SUV)",
         xy=(0.0, 2.0),
         xytext=(24.0, 56.0),
-        color="white",
+        color=CONSOLE["text"],
         fontsize=8.2,
         fontweight="bold",
-        arrowprops={"arrowstyle": "->", "color": "white", "lw": 1.4},
+        arrowprops={"arrowstyle": "->", "color": CONSOLE["text"], "lw": 1.4},
     )
-    ax_c.set_title("C. Reconstructed PET (Cold-Dome Artifact)", loc="left")
+    _set_panel_header(ax_c, "C", "Reconstructed PET (Cold-Dome Artifact)")
     ax_c.set_xlabel("Lateral Position x (mm)")
     ax_c.set_ylabel("Superior–Inferior z (mm)")
     _add_scalebar(ax_c, length_mm=20.0, x_right=112.0, y_bottom=-112.0)
     cbar_c = fig.colorbar(im_c, ax=ax_c, fraction=0.046, pad=0.03)
-    cbar_c.set_label("Apparent SUV", fontsize=8.4)
+    _style_colorbar(cbar_c, "Apparent SUV", fontsize=8.4)
 
     # Panel D: Analytical bias vs breathing shift (-15 to +15 mm) for PET 511 keV & Lu-177 SPECT 208 keV
     shifts = np.linspace(-15.0, 15.0, 61)
     pet_err = [compute_ct_ac_mismatch_report(float(s), photon_energy_kev=511.0).apparent_suv_percent_error for s in shifts]
     spect_err = [compute_ct_ac_mismatch_report(float(s), photon_energy_kev=208.0).apparent_suv_percent_error for s in shifts]
 
-    ax_d.axhspan(-20.0, 20.0, color=OI["green"], alpha=0.12, label="Acceptable Tolerance (±20%)")
+    ax_d.axhspan(-20.0, 20.0, color=OI["green"], alpha=0.14, label="Acceptable Tolerance (±20%)")
     ax_d.axhline(20.0, color=OI["vermilion"], ls="--", lw=1.3, label="Abstention Gate (SEVERE_CT_AC_MISMATCH)")
     ax_d.axhline(-20.0, color=OI["vermilion"], ls="--", lw=1.3)
-    ax_d.axhline(0.0, color="#666666", lw=0.8)
-    ax_d.axvline(0.0, color="#666666", lw=0.8)
+    ax_d.axhline(0.0, color=CONSOLE["muted"], lw=0.8)
+    ax_d.axvline(0.0, color=CONSOLE["muted"], lw=0.8)
     ax_d.plot(shifts, pet_err, color=OI["blue"], lw=2.3, label="PET 511 keV (F-18 / Ga-68)")
     ax_d.plot(shifts, spect_err, color=OI["vermilion"], lw=2.1, ls="-.", label="SPECT 208 keV (Lu-177)")
     ax_d.text(-14.6, 22.5, "FALSE-HOT\n(Exp. CT on Lung)", fontsize=7.9, color=OI["vermilion"], fontweight="bold")
     ax_d.text(3.2, -46.5, "FALSE-COLD\n(Insp. CT on Liver)", fontsize=7.9, color=OI["blue"], fontweight="bold")
-    ax_d.set_title("D. Exact AC Line-Integral SUV Bias vs. Shift", loc="left")
+    _set_panel_header(ax_d, "D", "Exact AC Line-Integral SUV Bias vs. Shift")
     ax_d.set_xlabel("CT – PET/SPECT Diaphragm Shift Δz (mm)")
     ax_d.set_ylabel("Apparent SUV Bias (%)")
     ax_d.set_xlim(-15.5, 15.5)
     ax_d.set_ylim(-52.0, 72.0)
-    ax_d.grid(True, alpha=0.25, ls=":")
+    ax_d.grid(True, alpha=0.65, ls=":")
     ax_d.legend(loc="upper right", fontsize=7.4)
 
     fig.tight_layout(rect=(0.0, 0.03, 1.0, 0.99), w_pad=2.2)
@@ -619,25 +746,25 @@ def generate_fig5_longitudinal_attribution(out_dir: Path) -> None:
                 0.68,
                 abs(v),
                 facecolor=bar_colors[i],
-                edgecolor="#222222",
+                edgecolor=CONSOLE["bg"],
                 linewidth=0.8,
             )
             ax.add_patch(rect)
             # Connector dashed line to next bar
             if i < 3:
-                ax.plot([x[i] + 0.34, x[i + 1] - 0.34], [b + v, b + v], color="#888888", ls=":", lw=1.0)
+                ax.plot([x[i] + 0.34, x[i + 1] - 0.34], [b + v, b + v], color=CONSOLE["muted"], ls=":", lw=1.0)
             y_txt = (b + v + 2.2) if v >= 0 else (b + v - 4.2)
             if abs(v) >= 0.4:
-                ax.text(x[i], y_txt, f"{v:+.1f}%", ha="center", va="bottom" if v >= 0 else "top", fontsize=8.0, fontweight="bold")
+                ax.text(x[i], y_txt, f"{v:+.1f}%", ha="center", va="bottom" if v >= 0 else "top", fontsize=8.0, fontweight="bold", color=CONSOLE["text"])
             else:
-                ax.text(x[i], b + 1.8, "0.0%", ha="center", va="bottom", fontsize=7.6, color="#666666")
+                ax.text(x[i], b + 1.8, "0.0%", ha="center", va="bottom", fontsize=7.6, color=CONSOLE["muted"])
 
         # Total observed bar
-        ax.bar(x[4], total, width=0.68, color=bar_colors[4], edgecolor="#222222", linewidth=0.9)
+        ax.bar(x[4], total, width=0.68, color=bar_colors[4], edgecolor=CONSOLE["bg"], linewidth=0.9)
         ax.text(x[4], total + 2.2, f"{total:+.1f}%", ha="center", va="bottom", fontsize=8.4, fontweight="bold", color=OI["blue"])
 
-        ax.axhline(0.0, color="#333333", lw=0.9)
-        ax.axhline(30.0, color=OI["vermilion"], ls="--", lw=1.1, alpha=0.75, label="PERCIST +30% Threshold")
+        ax.axhline(0.0, color=CONSOLE["tick"], lw=0.9)
+        ax.axhline(30.0, color=OI["vermilion"], ls="--", lw=1.1, alpha=0.80, label="PERCIST +30% Threshold")
 
         verdict_color = OI["green"] if diag.verdict == "TRUE_BIOLOGICAL_PROGRESSION" else OI["vermilion"]
         gate_str = "PERCIST: PASS" if diag.percist_quantifiable else "PERCIST: BLOCKED"
@@ -651,16 +778,16 @@ def generate_fig5_longitudinal_attribution(out_dir: Path) -> None:
             fontsize=7.8,
             fontweight="bold",
             color=verdict_color,
-            bbox={"boxstyle": "round,pad=0.3", "fc": "white", "ec": verdict_color, "alpha": 0.92},
+            bbox={"boxstyle": "round,pad=0.3", "fc": CONSOLE["legend"], "ec": verdict_color, "alpha": 0.95},
         )
 
-        ax.set_title(f"{letter}. {diag.scenario_name}", loc="left", fontsize=9.8)
+        _set_panel_header(ax, letter, diag.scenario_name, title_fontsize=9.6)
         ax.set_xticks(x)
         ax.set_xticklabels(cat_labels, fontsize=8.0)
         ax.set_ylabel("Contribution to ΔSUV (%)")
         ax.set_xlim(-0.6, 4.6)
         ax.set_ylim(-14.0, max(54.0, total + 20.0))
-        ax.grid(True, axis="y", alpha=0.25, ls=":")
+        ax.grid(True, axis="y", alpha=0.65, ls=":")
         ax.legend(loc="lower right", fontsize=7.4)
 
     fig.tight_layout(rect=(0.0, 0.03, 1.0, 0.99))
@@ -697,24 +824,25 @@ def generate_fig6_sobol_sensitivity(out_dir: Path) -> None:
     lg_s1 = [s_large.s1[k] for k in pkeys]
     lg_st = [s_large.st[k] for k in pkeys]
 
+    err_kw = {"ecolor": CONSOLE["tick"], "elinewidth": 1.0, "capthick": 1.0}
     ax1.bar(
-        x - 1.5 * w, sm_s1, width=w, color=OI["skyblue"], edgecolor="#333333", lw=0.7,
-        yerr=_ci_err(sm_s1, [s_small.s1_ci95[k] for k in pkeys]), capsize=2.5,
+        x - 1.5 * w, sm_s1, width=w, color=OI["skyblue"], edgecolor=CONSOLE["bg"], lw=0.7,
+        yerr=_ci_err(sm_s1, [s_small.s1_ci95[k] for k in pkeys]), capsize=2.5, error_kw=err_kw,
         label=r"Small Lesion (10 mm) — First-Order $S_1$",
     )
     ax1.bar(
-        x - 0.5 * w, sm_st, width=w, color=OI["blue"], edgecolor="#333333", lw=0.7,
-        yerr=_ci_err(sm_st, [s_small.st_ci95[k] for k in pkeys]), capsize=2.5,
+        x - 0.5 * w, sm_st, width=w, color=OI["blue"], edgecolor=CONSOLE["bg"], lw=0.7,
+        yerr=_ci_err(sm_st, [s_small.st_ci95[k] for k in pkeys]), capsize=2.5, error_kw=err_kw,
         label=r"Small Lesion (10 mm) — Total-Order $S_T$",
     )
     ax1.bar(
-        x + 0.5 * w, lg_s1, width=w, color=OI["orange"], edgecolor="#333333", lw=0.7,
-        yerr=_ci_err(lg_s1, [s_large.s1_ci95[k] for k in pkeys]), capsize=2.5,
+        x + 0.5 * w, lg_s1, width=w, color=OI["orange"], edgecolor=CONSOLE["bg"], lw=0.7,
+        yerr=_ci_err(lg_s1, [s_large.s1_ci95[k] for k in pkeys]), capsize=2.5, error_kw=err_kw,
         label=r"Large Lesion (34 mm) — First-Order $S_1$",
     )
     ax1.bar(
-        x + 1.5 * w, lg_st, width=w, color=OI["vermilion"], edgecolor="#333333", lw=0.7,
-        yerr=_ci_err(lg_st, [s_large.st_ci95[k] for k in pkeys]), capsize=2.5,
+        x + 1.5 * w, lg_st, width=w, color=OI["vermilion"], edgecolor=CONSOLE["bg"], lw=0.7,
+        yerr=_ci_err(lg_st, [s_large.st_ci95[k] for k in pkeys]), capsize=2.5, error_kw=err_kw,
         label=r"Large Lesion (34 mm) — Total-Order $S_T$",
     )
 
@@ -722,8 +850,8 @@ def generate_fig6_sobol_sensitivity(out_dir: Path) -> None:
     ax1.set_xticklabels([param_labels[k] for k in pkeys])
     ax1.set_ylabel("Sobol' Variance Sensitivity Index (0 – 1)")
     ax1.set_ylim(0.0, 1.05)
-    ax1.set_title("A. Small (10 mm) vs. Large (34 mm) Lesion Variance Decomposition", loc="left")
-    ax1.grid(True, axis="y", alpha=0.25, ls=":")
+    _set_panel_header(ax1, "A", "Small (10 mm) vs. Large (34 mm) Variance")
+    ax1.grid(True, axis="y", alpha=0.65, ls=":")
     ax1.legend(loc="upper left", fontsize=7.6)
 
     # Panel B: Continuous ST crossover across lesion diameters 8 - 40 mm
@@ -744,16 +872,16 @@ def generate_fig6_sobol_sensitivity(out_dir: Path) -> None:
         col, mk, lbl = trace_styles[k]
         ax2.plot(diam_grid, st_traces[k], color=col, marker=mk, lw=2.1, ms=5.5, label=lbl)
 
-    ax2.axvspan(8.0, 15.0, color=OI["skyblue"], alpha=0.12)
-    ax2.axvspan(30.0, 40.0, color=OI["vermilion"], alpha=0.08)
+    ax2.axvspan(8.0, 15.0, color=OI["skyblue"], alpha=0.14)
+    ax2.axvspan(30.0, 40.0, color=OI["vermilion"], alpha=0.11)
     ax2.text(11.5, 0.94, "PVE / Resolution\nRegime (<15 mm)", ha="center", va="top", fontsize=7.8, fontweight="bold", color=OI["blue"])
     ax2.text(35.0, 0.94, "CT-AC Motion\nRegime (>30 mm)", ha="center", va="top", fontsize=7.8, fontweight="bold", color=OI["vermilion"])
-    ax2.set_title(r"B. Total-Order Sensitivity ($S_T$) Regime Shift Across Lesion Size", loc="left")
+    _set_panel_header(ax2, "B", r"Total-Order Sensitivity ($S_T$) Across Lesion Size")
     ax2.set_xlabel("Lesion Inner Diameter (mm)")
     ax2.set_ylabel(r"Total-Order Sobol' Index ($S_T$)")
     ax2.set_xlim(7.5, 40.8)
     ax2.set_ylim(0.0, 1.02)
-    ax2.grid(True, alpha=0.25, ls=":")
+    ax2.grid(True, alpha=0.65, ls=":")
     ax2.legend(loc="center right", fontsize=7.7)
 
     fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
@@ -825,12 +953,12 @@ def generate_fig7_theranostics_and_positron_range(out_dir: Path) -> None:
         color=OI["vermilion"],
         arrowprops={"arrowstyle": "->", "color": OI["vermilion"], "lw": 1.3},
     )
-    ax1.set_title(r"A. $^{177}$Lu CZT SPECT/CT Tumor Absorbed Dose (MIRD-26)", loc="left")
+    _set_panel_header(ax1, "A", r"$^{177}$Lu CZT SPECT/CT Tumor Absorbed Dose (MIRD-26)")
     ax1.set_xlabel("Tumor Inner Diameter (mm)")
     ax1.set_ylabel("Absorbed Dose (Gy)")
     ax1.set_xlim(9.0, 41.2)
     ax1.set_ylim(0.0, max(pvc_p95s) * 1.15)
-    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.grid(True, alpha=0.65, ls=":")
     ax1.legend(loc="lower right", fontsize=7.6)
 
     # Panel B: Isotope Positron-Range impact on NEMA spheres (F-18 vs Zr-89 vs Ga-68 water vs Ga-68 lung)
@@ -858,13 +986,13 @@ def generate_fig7_theranostics_and_positron_range(out_dir: Path) -> None:
         ]
         ax2.plot(nema_d, rcs, color=col, marker=mk, ls=ls, lw=2.1, ms=5.8, label=lbl)
 
-    ax2.axhline(1.0, color="#666666", ls=":", lw=1.0)
-    ax2.set_title("B. Positron-Range Resolution Loss Across PET Radionuclides", loc="left")
+    ax2.axhline(1.0, color=CONSOLE["muted"], ls=":", lw=1.0)
+    _set_panel_header(ax2, "B", "Positron-Range Resolution Loss Across Radionuclides")
     ax2.set_xlabel("NEMA Sphere Inner Diameter (mm)")
     ax2.set_ylabel("True-VOI Recovery Coefficient (RC)")
     ax2.set_xticks(nema_d)
     ax2.set_ylim(0.18, 1.06)
-    ax2.grid(True, alpha=0.25, ls=":")
+    ax2.grid(True, alpha=0.65, ls=":")
     ax2.legend(loc="lower right", fontsize=7.8)
 
     fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
@@ -927,11 +1055,11 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
             ax1.scatter(
                 [p.background_cov_pct for p in infeas],
                 [p.cnr_score for p in infeas],
-                facecolors="white",
+                facecolors=CONSOLE["axes"],
                 edgecolors=col,
                 marker=mk,
                 s=34,
-                lw=1.2,
+                lw=1.3,
                 zorder=4,
             )
         if feas:
@@ -939,7 +1067,7 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
                 [p.background_cov_pct for p in feas],
                 [p.cnr_score for p in feas],
                 color=col,
-                edgecolors="#222222",
+                edgecolors=CONSOLE["text"],
                 marker=mk,
                 s=46,
                 lw=0.8,
@@ -947,12 +1075,12 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
                 label=f"{lbl} (Filled = EARL2 + COV OK)",
             )
 
-    ax1.set_title("A. Noise-Constrained EARL2 Pareto Frontier", loc="left")
+    _set_panel_header(ax1, "A", "Noise-Constrained EARL2 Pareto Frontier")
     ax1.set_xlabel("Background Noise COV (%)")
     ax1.set_ylabel("13 mm Sphere Contrast-to-Noise Ratio (CNR)")
     ax1.set_xlim(2.5, 26.0)
     ax1.set_ylim(10.0, 66.0)
-    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.grid(True, alpha=0.65, ls=":")
     ax1.legend(loc="upper right", fontsize=7.2)
 
     # Panel B: Axial slice comparison (left half = Observed PET, right half = RBV PVC)
@@ -969,15 +1097,15 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
         origin="lower",
         extent=[-half_ext, half_ext, -half_ext, half_ext],
     )
-    ax2.axvline(0.0, color="white", ls="--", lw=1.4)
-    ax2.text(-22.0, 35.0, "Observed\nPET", color="white", ha="center", fontsize=8.3, fontweight="bold")
-    ax2.text(22.0, 35.0, "RBV PVC\nRecovered", color="#56B4E9", ha="center", fontsize=8.3, fontweight="bold")
+    ax2.axvline(0.0, color=CONSOLE["text"], ls="--", lw=1.4)
+    ax2.text(-22.0, 35.0, "Observed\nPET", color=CONSOLE["text"], ha="center", fontsize=8.3, fontweight="bold")
+    ax2.text(22.0, 35.0, "RBV PVC\nRecovered", color=PAL["cyan"], ha="center", fontsize=8.3, fontweight="bold")
     _add_scalebar(ax2, length_mm=20.0, x_right=39.0, y_bottom=-38.0)
-    ax2.set_title("B. Necrotic-Core Tumor (Split View)", loc="left")
+    _set_panel_header(ax2, "B", "Necrotic-Core (Split View)", title_fontsize=9.3)
     ax2.set_xlabel("x (mm)")
     ax2.set_ylabel("y (mm)")
     cbar2 = fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.03)
-    cbar2.set_label("Activity (SUV)", fontsize=8.4)
+    _style_colorbar(cbar2, "Activity (SUV)", fontsize=8.4)
 
     # Panel C: 1D transverse profile across necrotic core & viable rim
     ax3 = fig.add_subplot(gs[0, 2])
@@ -995,12 +1123,12 @@ def generate_fig8_pareto_and_rbv(out_dir: Path) -> None:
         color=OI["green"],
         arrowprops={"arrowstyle": "->", "color": OI["green"], "lw": 1.2},
     )
-    ax3.set_title("C. Viable-Rim & Necrotic-Core Line Profile", loc="left")
+    _set_panel_header(ax3, "C", "Viable-Rim & Necrotic-Core Profile")
     ax3.set_xlabel("Transverse Position x (mm)")
     ax3.set_ylabel("Activity Concentration (SUV)")
     ax3.set_xlim(-34.0, 34.0)
     ax3.set_ylim(0.0, 11.4)
-    ax3.grid(True, alpha=0.25, ls=":")
+    ax3.grid(True, alpha=0.65, ls=":")
     ax3.legend(loc="upper center", fontsize=7.4)
 
     fig.subplots_adjust(bottom=0.14, top=0.90, left=0.05, right=0.97)
@@ -1033,7 +1161,7 @@ def generate_fig9_n1_scanner_translation(out_dir: Path) -> None:
 
     # Panel A: Spectral MTF & Reverse-Gibbs operator vs ill-posed up-translation ceiling
     ax1.axhline(2.0, color=OI["vermilion"], ls="--", lw=1.4, label="Noise-Amplification Abstention Ceiling (2.0×)")
-    ax1.axhline(1.0, color="#666666", ls=":", lw=1.0)
+    ax1.axhline(1.0, color=CONSOLE["muted"], ls=":", lw=1.0)
     ax1.plot(f_vals, h_sipm[0, 0, pos], color=OI["vermilion"], lw=2.2, label=r"Source $|H_A(f)|$: SiPM PSF-OSEM (Gibbs > 1.0)")
     ax1.plot(f_vals, h_pmt[0, 0, pos], color=OI["blue"], lw=2.2, label=r"Target $|H_B(f)|$: Legacy PMT OSEM")
     ax1.plot(
@@ -1060,12 +1188,12 @@ def generate_fig9_n1_scanner_translation(out_dir: Path) -> None:
         color=OI["vermilion"],
         arrowprops={"arrowstyle": "->", "color": OI["vermilion"], "lw": 1.2},
     )
-    ax1.set_title(r"A. 3D Transfer Functions & Reverse-Gibbs Operator $T_{A\to B}(f)$", loc="left")
+    _set_panel_header(ax1, "A", r"3D Transfer Functions & Reverse-Gibbs $T_{A\to B}(f)$")
     ax1.set_xlabel("Spatial Frequency f (cycles/mm)")
     ax1.set_ylabel("Spectral Gain / MTF Magnitude")
     ax1.set_xlim(0.0, 0.24)
     ax1.set_ylim(0.0, max(2.65, norm_up * 1.15))
-    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.grid(True, alpha=0.65, ls=":")
     ax1.legend(loc="upper right", fontsize=7.4)
 
     # Panel B: Per-Sphere SUVmax Cross-Scanner Bias (%) — Uncorrected vs ComBat vs Physics N=1 Translation
@@ -1078,21 +1206,21 @@ def generate_fig9_n1_scanner_translation(out_dir: Path) -> None:
     b_comb = [combat_bias[k] for k in keys]
     b_post = [tr_res.per_sphere_bias_after_pct[k] for k in keys]
 
-    ax2.axhspan(-6.0, 6.0, color=OI["green"], alpha=0.12, label="Longitudinal Equivalence Band (±6%)")
-    ax2.bar(x - w, b_pre, width=w, color=OI["vermilion"], edgecolor="#222222", lw=0.7, label="Uncorrected Switch (SiPM vs. PMT)")
-    ax2.bar(x, b_comb, width=w, color=OI["orange"], edgecolor="#222222", lw=0.7, label="Size-Blind ComBat Scalar Baseline")
-    ax2.bar(x + w, b_post, width=w, color=OI["green"], edgecolor="#222222", lw=0.7, label=r"quantnuc $T_{A\to B}$ ($N=1$, Max |Bias|=1.1%)")
+    ax2.axhspan(-6.0, 6.0, color=OI["green"], alpha=0.14, label="Longitudinal Equivalence Band (±6%)")
+    ax2.bar(x - w, b_pre, width=w, color=OI["vermilion"], edgecolor=CONSOLE["bg"], lw=0.7, label="Uncorrected Switch (SiPM vs. PMT)")
+    ax2.bar(x, b_comb, width=w, color=OI["orange"], edgecolor=CONSOLE["bg"], lw=0.7, label="Size-Blind ComBat Scalar Baseline")
+    ax2.bar(x + w, b_post, width=w, color=OI["green"], edgecolor=CONSOLE["bg"], lw=0.7, label=r"quantnuc $T_{A\to B}$ ($N=1$, Max |Bias|=1.1%)")
     for xi, vp in zip(x + w, b_post, strict=True):
         ax2.text(xi, 7.2, f"{vp:+.1f}%", ha="center", va="bottom", fontsize=7.0, fontweight="bold", color=OI["green"])
-    ax2.axhline(0.0, color="#333333", lw=0.9)
+    ax2.axhline(0.0, color=CONSOLE["tick"], lw=0.9)
 
     ax2.set_xticks(x)
     ax2.set_xticklabels(labels)
     ax2.set_xlabel("NEMA Sphere Inner Diameter")
     ax2.set_ylabel("Cross-Scanner SUVmax Bias vs. Target (%)")
-    ax2.set_title(f"B. N=1 Cross-Scanner Bias (Gibbs Suppression = {gibbs_supp:.0f}%)", loc="left")
+    _set_panel_header(ax2, "B", f"N=1 Cross-Scanner Bias (Gibbs Supp. = {gibbs_supp:.0f}%)")
     ax2.set_ylim(-30.0, 145.0)
-    ax2.grid(True, axis="y", alpha=0.25, ls=":")
+    ax2.grid(True, axis="y", alpha=0.65, ls=":")
     ax2.legend(loc="upper right", fontsize=7.5)
 
     fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
@@ -1137,8 +1265,8 @@ def generate_fig10_gear2018_stp_designer(out_dir: Path) -> None:
     ax1.plot(t, c_tum["stp_total_cv_pct"], color=OI["vermilion"], lw=2.3, label=f"Tumor 12 mm STP (t*={stp_tum.optimal_stp_time_h:.0f} h, CV={stp_tum.optimal_stp_total_dose_cv_pct:.1f}% ✗)")
     ax1.axhline(stp_tum.two_timepoint_total_dose_cv_pct, color=OI["orange"], ls="-.", lw=1.8, label=f"Tumor 12 mm D-Optimal 2-TP ({int(stp_tum.d_optimal_two_timepoints_h[0])}h & {int(stp_tum.d_optimal_two_timepoints_h[1])}h: {stp_tum.two_timepoint_total_dose_cv_pct:.1f}%)")
 
-    ax1.scatter([stp_kid.optimal_stp_time_h], [stp_kid.optimal_stp_total_dose_cv_pct], color=OI["blue"], s=70, zorder=6, edgecolor="black")
-    ax1.scatter([stp_tum.optimal_stp_time_h], [stp_tum.optimal_stp_total_dose_cv_pct], color=OI["vermilion"], s=70, zorder=6, edgecolor="black")
+    ax1.scatter([stp_kid.optimal_stp_time_h], [stp_kid.optimal_stp_total_dose_cv_pct], color=OI["blue"], s=70, zorder=6, edgecolor=CONSOLE["text"], lw=1.0)
+    ax1.scatter([stp_tum.optimal_stp_time_h], [stp_tum.optimal_stp_total_dose_cv_pct], color=OI["vermilion"], s=70, zorder=6, edgecolor=CONSOLE["text"], lw=1.0)
 
     ax1.annotate(
         "STP Approved\n(Saves 3 of 4 scans)",
@@ -1149,12 +1277,12 @@ def generate_fig10_gear2018_stp_designer(out_dir: Path) -> None:
         color=OI["blue"],
         arrowprops={"arrowstyle": "->", "color": OI["blue"], "lw": 1.3},
     )
-    ax1.set_title(r"A. Fisher-Optimal $^{177}$Lu STP vs. 2-TP SPECT/CT Schedule", loc="left")
+    _set_panel_header(ax1, "A", r"Fisher-Optimal $^{177}$Lu STP vs. 2-TP Schedule")
     ax1.set_xlabel("Single SPECT/CT Imaging Timepoint t₁ (Hours Post-Injection)")
     ax1.set_ylabel("Total EANM Gear-2018 Absorbed-Dose CV (%)")
     ax1.set_xlim(6.0, 180.0)
     ax1.set_ylim(0.0, 48.0)
-    ax1.grid(True, alpha=0.25, ls=":")
+    ax1.grid(True, alpha=0.65, ls=":")
     ax1.legend(loc="upper right", fontsize=7.3)
 
     # Panel B: Gear-2018 Full-Covariance Variance Breakdown (%) across lesion diameters 10-40 mm
@@ -1172,22 +1300,22 @@ def generate_fig10_gear2018_stp_designer(out_dir: Path) -> None:
     dt_v = np.array([b.variance_contrib_deadtime_scatter_pct for b in budgets])
     ac_v = np.array([b.variance_contrib_ct_ac_pct for b in budgets])
 
-    ax2.bar(x, pve_v, width=0.56, color=OI["blue"], edgecolor="#222222", lw=0.6, label="PVE & Boundary Delineation (Net of V–S Cov.)")
-    ax2.bar(x, tiac_v, width=0.56, bottom=pve_v, color=OI["green"], edgecolor="#222222", lw=0.6, label="TIAC Pharmacokinetic Fitting")
-    ax2.bar(x, cal_v, width=0.56, bottom=pve_v + tiac_v, color=OI["orange"], edgecolor="#222222", lw=0.6, label="SPECT Camera Calibration")
-    ax2.bar(x, dt_v, width=0.56, bottom=pve_v + tiac_v + cal_v, color=OI["purple"], edgecolor="#222222", lw=0.6, label="Dead-Time & TEW Scatter")
-    ax2.bar(x, ac_v, width=0.56, bottom=pve_v + tiac_v + cal_v + dt_v, color=OI["vermilion"], edgecolor="#222222", lw=0.6, label="CT-AC Respiratory Residual")
+    ax2.bar(x, pve_v, width=0.56, color=OI["blue"], edgecolor=CONSOLE["bg"], lw=0.6, label="PVE & Boundary Delineation (Net of V–S Cov.)")
+    ax2.bar(x, tiac_v, width=0.56, bottom=pve_v, color=OI["green"], edgecolor=CONSOLE["bg"], lw=0.6, label="TIAC Pharmacokinetic Fitting")
+    ax2.bar(x, cal_v, width=0.56, bottom=pve_v + tiac_v, color=OI["orange"], edgecolor=CONSOLE["bg"], lw=0.6, label="SPECT Camera Calibration")
+    ax2.bar(x, dt_v, width=0.56, bottom=pve_v + tiac_v + cal_v, color=OI["purple"], edgecolor=CONSOLE["bg"], lw=0.6, label="Dead-Time & TEW Scatter")
+    ax2.bar(x, ac_v, width=0.56, bottom=pve_v + tiac_v + cal_v + dt_v, color=OI["vermilion"], edgecolor=CONSOLE["bg"], lw=0.6, label="CT-AC Respiratory Residual")
 
     for i, b in enumerate(budgets):
-        ax2.text(x[i], 102.0, f"CV={b.dose_cv_pct:.1f}%", ha="center", va="bottom", fontsize=8.0, fontweight="bold", color="#222222")
+        ax2.text(x[i], 102.0, f"CV={b.dose_cv_pct:.1f}%", ha="center", va="bottom", fontsize=8.0, fontweight="bold", color=CONSOLE["text"])
 
     ax2.set_xticks(x)
     ax2.set_xticklabels([f"{int(d)} mm" for d in diams])
     ax2.set_xlabel("Target Tumor / Organ Diameter")
     ax2.set_ylabel("Share of Total Dose Variance (%)")
     ax2.set_ylim(0.0, 126.0)
-    ax2.set_title("B. EANM Gear-2018 Correlated Variance Budget", loc="left")
-    ax2.grid(True, axis="y", alpha=0.25, ls=":")
+    _set_panel_header(ax2, "B", "EANM Gear-2018 Correlated Variance Budget")
+    ax2.grid(True, axis="y", alpha=0.65, ls=":")
     ax2.legend(loc="upper center", ncol=2, fontsize=7.1)
 
     fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.99))
